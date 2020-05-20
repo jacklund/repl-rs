@@ -24,22 +24,28 @@ impl<Context> Repl<Context> {
         self.commands.insert(name.to_string(), callback);
     }
 
+    fn handle_command(&mut self, command: String, args: &[&str]) {
+        match self.commands.get(&command) {
+            Some(callback) => match callback(&args, &mut self.context) {
+                Ok(value) => println!("{}", value),
+                Err(value) => eprintln!("{}", value),
+            },
+            None => eprintln!("Error: Unknown command {}", command),
+        }
+    }
+
+    fn process_line(&mut self, line: String) {
+        self.editor.add_history_entry(line.clone());
+        let mut args = line.trim().split_whitespace().collect::<Vec<&str>>();
+        let command: String = args.drain(..1).collect();
+        self.handle_command(command, &args);
+    }
+
     pub fn run(&mut self) {
         loop {
             let result = self.editor.readline(">> ");
             match result {
-                Ok(line) => {
-                    self.editor.add_history_entry(line.clone());
-                    let mut args = line.trim().split_whitespace().collect::<Vec<&str>>();
-                    let command: String = args.drain(..1).collect();
-                    match self.commands.get(&command) {
-                        Some(callback) => match callback(&args, &mut self.context) {
-                            Ok(value) => println!("{}", value),
-                            Err(value) => eprintln!("{}", value),
-                        },
-                        None => eprintln!("Error: Unknown command {}", command),
-                    }
-                }
+                Ok(line) => self.process_line(line),
                 Err(rustyline::error::ReadlineError::Eof) => break,
                 Err(error) => eprintln!("Error reading line: {}", error),
             }
