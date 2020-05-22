@@ -6,6 +6,7 @@ pub enum Error {
     IllegalRequiredError(String, String),
     IllegalDefaultError(String, String),
     MissingRequiredArgument(String, String),
+    TooManyArguments(String, usize),
     CommandError(String),
 }
 
@@ -26,6 +27,11 @@ impl fmt::Display for Error {
                 f,
                 "Error: Missing required argument '{}' for command '{}'",
                 parameter, command
+            ),
+            Error::TooManyArguments(command, nargs) => write!(
+                f,
+                "Error: Command '{}' can have no more than {} arguments",
+                command, nargs,
             ),
             Error::CommandError(error) => write!(f, "Error: {}", error),
         }

@@ -73,6 +73,10 @@ impl<Context> Repl<Context> {
         definitions: &[ParameterDefinition],
         args: &[&str],
     ) -> Result<Vec<String>> {
+        if args.len() > definitions.len() {
+            return Err(Error::TooManyArguments(command.into(), definitions.len()));
+        }
+
         let mut validated = vec![];
         for (index, definition) in definitions.iter().enumerate() {
             if index < args.len() {
