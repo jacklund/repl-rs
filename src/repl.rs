@@ -26,15 +26,17 @@ impl HelpEntry {
 
 pub struct Repl<Context> {
     editor: rustyline::Editor<()>,
+    prompt: String,
     commands: HashMap<String, CommandDefinition<Context>>,
     context: Context,
     help: Option<Vec<HelpEntry>>,
 }
 
 impl<Context> Repl<Context> {
-    pub fn new(context: Context) -> Self {
+    pub fn new(prompt: &str, context: Context) -> Self {
         Self {
             editor: rustyline::Editor::new(),
+            prompt: prompt.to_string(),
             commands: HashMap::new(),
             context,
             help: None,
@@ -201,7 +203,7 @@ impl<Context> Repl<Context> {
         help_entries.sort_by_key(|d| d.command.clone());
         self.help = Some(help_entries);
         loop {
-            let result = self.editor.readline(">> ");
+            let result = self.editor.readline(&self.prompt);
             match result {
                 Ok(line) => {
                     if let Err(error) = self.process_line(line) {

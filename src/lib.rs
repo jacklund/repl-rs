@@ -34,7 +34,7 @@ mod tests {
 
     #[test]
     fn it_works() -> error::Result<()> {
-        let mut repl = Repl::new(Context::default());
+        let mut repl = Repl::new(">> ", Context::default());
         repl.add_command(
             "foo",
             vec![
