@@ -1,6 +1,6 @@
 use crate::command_def::{CommandDefinition, ParameterDefinition};
 use crate::error::*;
-use crate::Callback;
+use crate::{Callback, Value};
 use std::collections::HashMap;
 
 pub struct Repl<Context> {
@@ -72,7 +72,7 @@ impl<Context> Repl<Context> {
         command: &str,
         definitions: &[ParameterDefinition],
         args: &[&str],
-    ) -> Result<HashMap<String, String>> {
+    ) -> Result<HashMap<String, Value>> {
         if args.len() > definitions.len() {
             return Err(Error::TooManyArguments(command.into(), definitions.len()));
         }
@@ -80,7 +80,14 @@ impl<Context> Repl<Context> {
         let mut validated = HashMap::new();
         for (index, definition) in definitions.iter().enumerate() {
             if index < args.len() {
-                validated.insert(definition.name.clone(), args[index].into());
+                let converted = match definition.datatype.convert(args[index]) {
+                    Ok(value) => Ok(value),
+                    Err(error) => Err(Error::CommandError(format!(
+                        "Error parsing parameter '{}' in command '{}': {}",
+                        definition.name, command, error
+                    ))),
+                }?;
+                validated.insert(definition.name.clone(), converted);
             } else {
                 if definition.required {
                     return Err(Error::MissingRequiredArgument(

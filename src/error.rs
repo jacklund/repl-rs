@@ -1,12 +1,17 @@
+use std::convert::From;
 use std::fmt;
+use std::num;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(Debug)]
 pub enum Error {
     IllegalRequiredError(String, String),
     IllegalDefaultError(String, String),
     MissingRequiredArgument(String, String),
     TooManyArguments(String, usize),
+    ParseIntError(num::ParseIntError),
+    ParseFloatError(num::ParseFloatError),
     CommandError(String),
 }
 
@@ -33,7 +38,21 @@ impl fmt::Display for Error {
                 "Error: Command '{}' can have no more than {} arguments",
                 command, nargs,
             ),
+            Error::ParseFloatError(error) => write!(f, "Error: {}", error,),
+            Error::ParseIntError(error) => write!(f, "Error: {}", error,),
             Error::CommandError(error) => write!(f, "Error: {}", error),
         }
+    }
+}
+
+impl From<num::ParseIntError> for Error {
+    fn from(error: num::ParseIntError) -> Self {
+        Error::ParseIntError(error)
+    }
+}
+
+impl From<num::ParseFloatError> for Error {
+    fn from(error: num::ParseFloatError) -> Self {
+        Error::ParseFloatError(error)
     }
 }
