@@ -72,15 +72,15 @@ impl<Context> Repl<Context> {
         command: &str,
         definitions: &[ParameterDefinition],
         args: &[&str],
-    ) -> Result<Vec<String>> {
+    ) -> Result<HashMap<String, String>> {
         if args.len() > definitions.len() {
             return Err(Error::TooManyArguments(command.into(), definitions.len()));
         }
 
-        let mut validated = vec![];
+        let mut validated = HashMap::new();
         for (index, definition) in definitions.iter().enumerate() {
             if index < args.len() {
-                validated.push(args[index].into());
+                validated.insert(definition.name.clone(), args[index].into());
             } else {
                 if definition.required {
                     return Err(Error::MissingRequiredArgument(
@@ -88,7 +88,7 @@ impl<Context> Repl<Context> {
                         definition.name.clone(),
                     ));
                 } else if definition.default.is_some() {
-                    validated.push(definition.default.clone().unwrap());
+                    validated.insert(definition.name.clone(), definition.default.clone().unwrap());
                 }
             }
         }
@@ -99,7 +99,7 @@ impl<Context> Repl<Context> {
         match self.commands.get(command) {
             Some(definition) => {
                 let validated = self.validate_arguments(&command, &definition.parameters, args)?;
-                match (definition.callback)(&validated, &mut self.context) {
+                match (definition.callback)(validated, &mut self.context) {
                     Ok(value) => println!("{}", value),
                     Err(value) => eprintln!("{}", value),
                 };

@@ -5,21 +5,23 @@ mod error;
 pub mod repl;
 
 use error::*;
+use std::collections::HashMap;
 
-type Callback<Context> = fn(&[String], &mut Context) -> Result<String>;
+type Callback<Context> = fn(HashMap<String, String>, &mut Context) -> Result<String>;
 
 #[cfg(test)]
 mod tests {
     use crate::command_def::ParameterDefinition;
     use crate::error;
     use crate::repl::Repl;
+    use std::collections::HashMap;
 
     #[derive(Default)]
     struct Context {
         foobar: usize,
     }
 
-    fn foo(args: &[String], context: &mut Context) -> error::Result<String> {
+    fn foo(args: HashMap<String, String>, context: &mut Context) -> error::Result<String> {
         Ok(format!("foo {:?}", args))
     }
 
