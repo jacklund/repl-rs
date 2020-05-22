@@ -114,15 +114,13 @@ impl<Context> Repl<Context> {
                     ))),
                 }?;
                 validated.insert(definition.name.clone(), converted);
-            } else {
-                if definition.required {
-                    return Err(Error::MissingRequiredArgument(
-                        command.into(),
-                        definition.name.clone(),
-                    ));
-                } else if definition.default.is_some() {
-                    validated.insert(definition.name.clone(), definition.default.clone().unwrap());
-                }
+            } else if definition.required {
+                return Err(Error::MissingRequiredArgument(
+                    command.into(),
+                    definition.name.clone(),
+                ));
+            } else if definition.default.is_some() {
+                validated.insert(definition.name.clone(), definition.default.clone().unwrap());
             }
         }
         Ok(validated)
@@ -156,7 +154,7 @@ impl<Context> Repl<Context> {
                 if entry.summary.is_some() {
                     print!(" - {}", entry.summary.clone().unwrap());
                 }
-                println!("");
+                println!();
             }
         } else {
             let entry_opt = self
@@ -165,22 +163,22 @@ impl<Context> Repl<Context> {
                 .unwrap()
                 .iter()
                 .find(|entry| entry.command == args[0]);
-            if entry_opt.is_none() {
-                eprintln!("No help for {} found", args[0]);
-            } else {
-                let entry = entry_opt.unwrap();
-                if entry.summary.is_some() {
-                    println!("{}", entry.summary.clone().unwrap());
-                }
-                println!("Usage:");
-                print!("\t{}", entry.command);
-                for param in entry.parameters.clone() {
-                    if param.1 {
-                        print!(" {}", param.0);
-                    } else {
-                        print!(" [{}]", param.0);
+            match entry_opt {
+                Some(entry) => {
+                    if entry.summary.is_some() {
+                        println!("{}", entry.summary.clone().unwrap());
+                    }
+                    println!("Usage:");
+                    print!("\t{}", entry.command);
+                    for param in entry.parameters.clone() {
+                        if param.1 {
+                            print!(" {}", param.0);
+                        } else {
+                            print!(" [{}]", param.0);
+                        }
                     }
                 }
+                None => eprintln!("No help for {} found", args[0]),
             }
         }
         Ok(())
