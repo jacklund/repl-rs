@@ -3,10 +3,32 @@ use crate::error::*;
 use crate::{Callback, Value};
 use std::collections::HashMap;
 
+#[derive(Debug)]
+struct HelpEntry {
+    command: String,
+    parameters: Vec<(String, bool)>,
+    summary: Option<String>,
+}
+
+impl HelpEntry {
+    fn new<Context>(command: &CommandDefinition<Context>) -> Self {
+        Self {
+            command: command.name.clone(),
+            parameters: command
+                .parameters
+                .iter()
+                .map(|pd| (pd.name.clone(), pd.required))
+                .collect(),
+            summary: command.help_summary.clone(),
+        }
+    }
+}
+
 pub struct Repl<Context> {
     editor: rustyline::Editor<()>,
     commands: HashMap<String, CommandDefinition<Context>>,
     context: Context,
+    help: Option<Vec<HelpEntry>>,
 }
 
 impl<Context> Repl<Context> {
@@ -15,6 +37,7 @@ impl<Context> Repl<Context> {
             editor: rustyline::Editor::new(),
             commands: HashMap::new(),
             context,
+            help: None,
         }
     }
 
@@ -58,11 +81,12 @@ impl<Context> Repl<Context> {
         name: &str,
         parameters: Vec<ParameterDefinition>,
         callback: Callback<Context>,
+        help_summary: Option<String>,
     ) -> Result<()> {
         self.validate_parameters(name, &parameters)?;
         self.commands.insert(
             name.to_string(),
-            CommandDefinition::new(name, parameters, callback),
+            CommandDefinition::new(name, parameters, callback, help_summary),
         );
         Ok(())
     }
@@ -111,9 +135,52 @@ impl<Context> Repl<Context> {
                     Err(value) => eprintln!("{}", value),
                 };
             }
-            None => eprintln!("Error: Unknown command {}", command),
+            None => {
+                if command == "help" {
+                    self.show_help(args)?;
+                } else {
+                    return Err(Error::UnknownCommand(command.to_string()));
+                }
+            }
         }
 
+        Ok(())
+    }
+
+    fn show_help(&self, args: &[&str]) -> Result<()> {
+        if args.is_empty() {
+            for entry in self.help.as_ref().unwrap() {
+                print!("{}", entry.command);
+                if entry.summary.is_some() {
+                    print!(" - {}", entry.summary.clone().unwrap());
+                }
+                println!("");
+            }
+        } else {
+            let entry_opt = self
+                .help
+                .as_ref()
+                .unwrap()
+                .iter()
+                .find(|entry| entry.command == args[0]);
+            if entry_opt.is_none() {
+                eprintln!("No help for {} found", args[0]);
+            } else {
+                let entry = entry_opt.unwrap();
+                if entry.summary.is_some() {
+                    println!("{}", entry.summary.clone().unwrap());
+                }
+                println!("Usage:");
+                print!("\t{}", entry.command);
+                for param in entry.parameters.clone() {
+                    if param.1 {
+                        print!(" {}", param.0);
+                    } else {
+                        print!(" [{}]", param.0);
+                    }
+                }
+            }
+        }
         Ok(())
     }
 
@@ -126,6 +193,13 @@ impl<Context> Repl<Context> {
     }
 
     pub fn run(&mut self) {
+        let mut help_entries = self
+            .commands
+            .iter()
+            .map(|(_, definition)| HelpEntry::new(&definition))
+            .collect::<Vec<HelpEntry>>();
+        help_entries.sort_by_key(|d| d.command.clone());
+        self.help = Some(help_entries);
         loop {
             let result = self.editor.readline(">> ");
             match result {

@@ -46,6 +46,7 @@ pub struct CommandDefinition<Context> {
     pub name: String,
     pub parameters: Vec<ParameterDefinition>,
     pub callback: Callback<Context>,
+    pub help_summary: Option<String>,
 }
 
 impl<Context> CommandDefinition<Context> {
@@ -53,11 +54,13 @@ impl<Context> CommandDefinition<Context> {
         name: &str,
         parameters: Vec<ParameterDefinition>,
         callback: Callback<Context>,
+        help_summary: Option<String>,
     ) -> Self {
         Self {
             name: name.into(),
             parameters,
             callback,
+            help_summary,
         }
     }
 }

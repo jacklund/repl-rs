@@ -42,6 +42,7 @@ mod tests {
                 ParameterDefinition::new("baz", Type::Int, false, Some("20"))?,
             ],
             foo,
+            Some("Do foo when you can".to_string()),
         );
         repl.run();
         Ok(())
