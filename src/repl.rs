@@ -1,7 +1,10 @@
 use crate::command_def::{CommandDefinition, ParameterDefinition};
 use crate::error::*;
 use crate::{Callback, Value};
+use std::boxed::Box;
 use std::collections::HashMap;
+use std::fmt::Display;
+use yansi::Paint;
 
 #[derive(Debug)]
 struct HelpEntry {
@@ -26,17 +29,36 @@ impl HelpEntry {
 
 pub struct Repl<Context> {
     editor: rustyline::Editor<()>,
-    prompt: String,
+    name: String,
+    version: String,
+    purpose: String,
+    prompt: Box<dyn Display>,
     commands: HashMap<String, CommandDefinition<Context>>,
     context: Context,
     help: Option<Vec<HelpEntry>>,
 }
 
 impl<Context> Repl<Context> {
-    pub fn new(prompt: &str, context: Context) -> Self {
+    pub fn new(
+        name: &str,
+        version: &str,
+        purpose: &str,
+        context: Context,
+        mut prompt: Option<&'static dyn Display>,
+    ) -> Self {
+        let default_prompt: Box<dyn Display> = Box::new(Paint::green(format!("{}> ", name)).bold());
+        let prompt: Box<dyn Display> = if prompt.is_some() {
+            Box::new(prompt.take().unwrap())
+        } else {
+            default_prompt
+        };
+
         Self {
             editor: rustyline::Editor::new(),
-            prompt: prompt.to_string(),
+            name: name.into(),
+            version: version.into(),
+            purpose: purpose.into(),
+            prompt,
             commands: HashMap::new(),
             context,
             help: None,
@@ -148,6 +170,15 @@ impl<Context> Repl<Context> {
     }
 
     fn show_help(&self, args: &[&str]) -> Result<()> {
+        let header = format!("{}: {}", self.name, self.purpose);
+        let underline = Paint::new(
+            std::iter::repeat(" ")
+                .take(header.len())
+                .collect::<String>(),
+        )
+        .strikethrough();
+        println!("{}", header);
+        println!("{}", underline);
         if args.is_empty() {
             for entry in self.help.as_ref().unwrap() {
                 print!("{}", entry.command);
@@ -200,8 +231,9 @@ impl<Context> Repl<Context> {
             .collect::<Vec<HelpEntry>>();
         help_entries.sort_by_key(|d| d.command.clone());
         self.help = Some(help_entries);
+        println!("Welcome to {} {}", self.name, self.version);
         loop {
-            let result = self.editor.readline(&self.prompt);
+            let result = self.editor.readline(&format!("{}", self.prompt));
             match result {
                 Ok(line) => {
                     if let Err(error) = self.process_line(line) {
