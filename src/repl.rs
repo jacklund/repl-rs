@@ -1,31 +1,11 @@
 use crate::command_def::{CommandDefinition, ParameterDefinition};
 use crate::error::*;
+use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::{Callback, Value};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
 use yansi::Paint;
-
-#[derive(Debug)]
-struct HelpEntry {
-    command: String,
-    parameters: Vec<(String, bool)>,
-    summary: Option<String>,
-}
-
-impl HelpEntry {
-    fn new<Context>(command: &CommandDefinition<Context>) -> Self {
-        Self {
-            command: command.name.clone(),
-            parameters: command
-                .parameters
-                .iter()
-                .map(|pd| (pd.name.clone(), pd.required))
-                .collect(),
-            summary: command.help_summary.clone(),
-        }
-    }
-}
 
 pub struct Repl<Context> {
     editor: rustyline::Editor<()>,
@@ -35,7 +15,8 @@ pub struct Repl<Context> {
     prompt: Box<dyn Display>,
     commands: HashMap<String, CommandDefinition<Context>>,
     context: Context,
-    help: Option<Vec<HelpEntry>>,
+    help_context: Option<HelpContext>,
+    help_viewer: Box<dyn HelpViewer>,
 }
 
 impl<Context> Repl<Context> {
@@ -61,7 +42,8 @@ impl<Context> Repl<Context> {
             prompt,
             commands: HashMap::new(),
             context,
-            help: None,
+            help_context: None,
+            help_viewer: Box::new(DefaultHelpViewer::new()),
         }
     }
 
@@ -170,47 +152,12 @@ impl<Context> Repl<Context> {
     }
 
     fn show_help(&self, args: &[&str]) -> Result<()> {
-        let header = format!("{}: {}", self.name, self.purpose);
-        let underline = Paint::new(
-            std::iter::repeat(" ")
-                .take(header.len())
-                .collect::<String>(),
-        )
-        .strikethrough();
-        println!("{}", header);
-        println!("{}", underline);
         if args.is_empty() {
-            for entry in self.help.as_ref().unwrap() {
-                print!("{}", entry.command);
-                if entry.summary.is_some() {
-                    print!(" - {}", entry.summary.clone().unwrap());
-                }
-                println!();
-            }
+            self.help_viewer
+                .help(None, &self.help_context.as_ref().unwrap())?;
         } else {
-            let entry_opt = self
-                .help
-                .as_ref()
-                .unwrap()
-                .iter()
-                .find(|entry| entry.command == args[0]);
-            match entry_opt {
-                Some(entry) => {
-                    if entry.summary.is_some() {
-                        println!("{}", entry.summary.clone().unwrap());
-                    }
-                    println!("Usage:");
-                    print!("\t{}", entry.command);
-                    for param in entry.parameters.clone() {
-                        if param.1 {
-                            print!(" {}", param.0);
-                        } else {
-                            print!(" [{}]", param.0);
-                        }
-                    }
-                }
-                None => eprintln!("No help for {} found", args[0]),
-            }
+            self.help_viewer
+                .help(Some(args[0]), &self.help_context.as_ref().unwrap())?;
         }
         Ok(())
     }
@@ -223,14 +170,23 @@ impl<Context> Repl<Context> {
         Ok(())
     }
 
-    pub fn run(&mut self) {
+    fn construct_help_context(&mut self) {
         let mut help_entries = self
             .commands
             .iter()
             .map(|(_, definition)| HelpEntry::new(&definition))
             .collect::<Vec<HelpEntry>>();
         help_entries.sort_by_key(|d| d.command.clone());
-        self.help = Some(help_entries);
+        self.help_context = Some(HelpContext::new(
+            &self.name,
+            &self.version,
+            &self.purpose,
+            help_entries,
+        ));
+    }
+
+    pub fn run(&mut self) {
+        self.construct_help_context();
         println!("Welcome to {} {}", self.name, self.version);
         loop {
             let result = self.editor.readline(&format!("{}", self.prompt));

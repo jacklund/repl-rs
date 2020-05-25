@@ -2,6 +2,7 @@ extern crate rustyline;
 
 mod command_def;
 mod error;
+pub mod help;
 pub mod repl;
 
 use error::*;
