@@ -253,7 +253,6 @@ mod tests {
             Ok(ForkResult::Parent { child, .. }) => {
                 // Parent
                 let mut f = unsafe { File::from_raw_fd(wrtr) };
-                println!("Writing");
                 write!(f, "{}", input);
                 if let WaitStatus::Exited(_, exit_code) = waitpid(child, None).unwrap() {
                     assert!(exit_code == 0);
