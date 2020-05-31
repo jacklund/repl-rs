@@ -7,16 +7,23 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use yansi::Paint;
 
+type ErrorHandler<Context> = fn(error: Error, repl: &Repl<Context>) -> Result<()>;
+
+fn default_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result<()> {
+    eprintln!("{}", error);
+    Ok(())
+}
+
 pub struct Repl<Context> {
-    editor: rustyline::Editor<()>,
-    name: String,
-    version: String,
-    purpose: String,
+    pub name: String,
+    pub version: String,
+    pub purpose: String,
     prompt: Box<dyn Display>,
     commands: HashMap<String, CommandDefinition<Context>>,
-    context: Context,
+    pub context: Context,
     help_context: Option<HelpContext>,
     help_viewer: Box<dyn HelpViewer>,
+    error_handler: ErrorHandler<Context>,
 }
 
 impl<Context> Repl<Context> {
@@ -35,7 +42,6 @@ impl<Context> Repl<Context> {
         };
 
         Self {
-            editor: rustyline::Editor::new(),
             name: name.into(),
             version: version.into(),
             purpose: purpose.into(),
@@ -44,7 +50,16 @@ impl<Context> Repl<Context> {
             context,
             help_context: None,
             help_viewer: Box::new(DefaultHelpViewer::new()),
+            error_handler: default_error_handler,
         }
+    }
+
+    pub fn set_help_viewer<V: 'static + HelpViewer>(&mut self, help_viewer: V) {
+        self.help_viewer = Box::new(help_viewer);
+    }
+
+    pub fn set_error_handler(&mut self, handler: ErrorHandler<Context>) {
+        self.error_handler = handler;
     }
 
     fn validate_parameters(&self, name: &str, parameters: &[ParameterDefinition]) -> Result<()> {
@@ -163,7 +178,6 @@ impl<Context> Repl<Context> {
     }
 
     fn process_line(&mut self, line: String) -> Result<()> {
-        self.editor.add_history_entry(line.clone());
         let mut args = line.trim().split_whitespace().collect::<Vec<&str>>();
         let command: String = args.drain(..1).collect();
         self.handle_command(&command, &args)?;
@@ -185,20 +199,206 @@ impl<Context> Repl<Context> {
         ));
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         self.construct_help_context();
+        let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
         println!("Welcome to {} {}", self.name, self.version);
         loop {
-            let result = self.editor.readline(&format!("{}", self.prompt));
-            match result {
+            match editor.readline(&format!("{}", self.prompt)) {
                 Ok(line) => {
+                    editor.add_history_entry(line.clone());
                     if let Err(error) = self.process_line(line) {
-                        eprintln!("{}", error);
+                        (self.error_handler)(error, self)?;
                     }
                 }
                 Err(rustyline::error::ReadlineError::Eof) => break,
                 Err(error) => eprintln!("Error reading line: {}", error),
             }
         }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::command_def::{ParameterDefinition, Type};
+    use crate::error::*;
+    use crate::repl::Repl;
+    use crate::Value;
+    use nix::sys::wait::{waitpid, WaitStatus};
+    use nix::unistd::{close, dup2, fork, pipe, sleep, ForkResult};
+    use std::collections::HashMap;
+    use std::fs::File;
+    use std::io::Write;
+    use std::os::unix::io::FromRawFd;
+    use std::thread;
+
+    fn test_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result<()> {
+        Err(error)
+    }
+
+    #[derive(Default)]
+    struct Context {
+        foobar: usize,
+    }
+
+    fn foo(args: HashMap<String, Value>, context: &mut Context) -> Result<String> {
+        Ok(format!("foo {:?}", args))
+    }
+
+    fn run_repl<Context>(mut repl: Repl<Context>, input: &str, expected: Result<()>) {
+        let (rdr, wrtr) = pipe().unwrap();
+        match fork() {
+            Ok(ForkResult::Parent { child, .. }) => {
+                // Parent
+                let mut f = unsafe { File::from_raw_fd(wrtr) };
+                println!("Writing");
+                write!(f, "{}", input);
+                if let WaitStatus::Exited(_, exit_code) = waitpid(child, None).unwrap() {
+                    assert!(exit_code == 0);
+                };
+            }
+            Ok(ForkResult::Child) => {
+                // Child
+                dup2(rdr, 0).unwrap();
+                close(rdr).unwrap();
+                let result = repl.run();
+                if expected == result {
+                    std::process::exit(0);
+                } else {
+                    eprintln!("Expected {:?}, got {:?}", expected, result);
+                    std::process::exit(1);
+                }
+            }
+            Err(_) => println!("Fork failed"),
+        }
+    }
+
+    #[test]
+    fn test_missing_required_arg_fails() {
+        let mut repl = Repl::new(
+            "test",
+            "v0.1.0",
+            "Testing 1, 2, 3...",
+            Context::default(),
+            None,
+        );
+        repl.set_error_handler(test_error_handler);
+        repl.add_command(
+            "foo",
+            vec![
+                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
+                ParameterDefinition::new("baz", Type::Int, true, None).unwrap(),
+            ],
+            foo,
+            Some("Do foo when you can".to_string()),
+        );
+        run_repl(
+            repl,
+            "foo bar\n",
+            Err(Error::MissingRequiredArgument("foo".into(), "baz".into())),
+        );
+    }
+
+    #[test]
+    fn test_unknown_command_fails() {
+        let mut repl = Repl::new(
+            "test",
+            "v0.1.0",
+            "Testing 1, 2, 3...",
+            Context::default(),
+            None,
+        );
+        repl.set_error_handler(test_error_handler);
+        repl.add_command(
+            "foo",
+            vec![
+                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
+                ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
+            ],
+            foo,
+            Some("Do foo when you can".to_string()),
+        );
+        run_repl(
+            repl,
+            "bar baz\n",
+            Err(Error::UnknownCommand("bar".to_string())),
+        );
+    }
+
+    #[test]
+    fn test_wrong_arg_type_fails() {
+        let error_string = "Error parsing parameter \'baz\' in command \'foo\': Error: invalid digit found in string".to_string();
+        let mut repl = Repl::new(
+            "test",
+            "v0.1.0",
+            "Testing 1, 2, 3...",
+            Context::default(),
+            None,
+        );
+        repl.set_error_handler(test_error_handler);
+        repl.add_command(
+            "foo",
+            vec![
+                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
+                ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
+            ],
+            foo,
+            Some("Do foo when you can".to_string()),
+        );
+        run_repl(
+            repl,
+            "foo bar baz\n",
+            Err(Error::CommandError(error_string)),
+        );
+    }
+
+    #[test]
+    fn test_no_required_after_optional() {
+        let mut repl = Repl::new(
+            "test",
+            "v0.1.0",
+            "Testing 1, 2, 3...",
+            Context::default(),
+            None,
+        );
+        repl.set_error_handler(test_error_handler);
+        assert_eq!(
+            Err(Error::IllegalRequiredError("foo".into(), "bar".into())),
+            repl.add_command(
+                "foo",
+                vec![
+                    ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
+                    ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
+                ],
+                foo,
+                Some("Do foo when you can".to_string()),
+            )
+        );
+    }
+
+    #[test]
+    fn test_required_cannot_be_defaulted() {
+        let mut repl = Repl::new(
+            "test",
+            "v0.1.0",
+            "Testing 1, 2, 3...",
+            Context::default(),
+            None,
+        );
+        repl.set_error_handler(test_error_handler);
+        assert_eq!(
+            Err(Error::IllegalDefaultError("foo".into(), "bar".into())),
+            repl.add_command(
+                "foo",
+                vec![
+                    ParameterDefinition::new("bar", Type::String, true, Some("foo")).unwrap(),
+                    ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
+                ],
+                foo,
+                Some("Do foo when you can".to_string()),
+            )
+        );
     }
 }
