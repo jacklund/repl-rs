@@ -125,21 +125,17 @@ impl<Context> Repl<Context> {
         let mut validated = HashMap::new();
         for (index, definition) in definitions.iter().enumerate() {
             if index < args.len() {
-                let converted = match definition.datatype.convert(args[index]) {
-                    Ok(value) => Ok(value),
-                    Err(error) => Err(Error::CommandError(format!(
-                        "Error parsing parameter '{}' in command '{}': {}",
-                        definition.name, command, error
-                    ))),
-                }?;
-                validated.insert(definition.name.clone(), converted);
+                validated.insert(definition.name.clone(), Value::new(&args[index]));
             } else if definition.required {
                 return Err(Error::MissingRequiredArgument(
                     command.into(),
                     definition.name.clone(),
                 ));
             } else if definition.default.is_some() {
-                validated.insert(definition.name.clone(), definition.default.clone().unwrap());
+                validated.insert(
+                    definition.name.clone(),
+                    Value::new(&definition.default.clone().unwrap()),
+                );
             }
         }
         Ok(validated)
