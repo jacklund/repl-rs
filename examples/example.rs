@@ -1,12 +1,12 @@
 extern crate repl_rs;
 
+use repl_rs::{Command, Parameter, Result, Value};
 use repl_rs::{Convert, Repl};
-use repl_rs::{ParameterDefinition, Result, Type, Value};
 use std::collections::HashMap;
 
 #[derive(Default)]
 struct Context {
-    foobar: usize,
+    _foobar: usize,
 }
 
 fn add(args: HashMap<String, Value>, _context: &mut Context) -> Result<String> {
@@ -29,19 +29,14 @@ fn main() -> Result<()> {
         None,
     );
     repl.add_command(
-        "add",
-        vec![
-            ParameterDefinition::new("first", Type::Int, true, None).unwrap(),
-            ParameterDefinition::new("second", Type::Int, true, None).unwrap(),
-        ],
-        add,
-        Some("Add two numbers".to_string()),
-    )?;
+        Command::new("add", add)
+            .with_parameter(Parameter::new("first").set_required(true)?)?
+            .with_parameter(Parameter::new("second").set_required(true)?)?,
+    );
     repl.add_command(
-        "hello",
-        vec![ParameterDefinition::new("who", Type::String, true, None).unwrap()],
-        hello,
-        Some("Greetings!".to_string()),
-    )?;
+        Command::new("hello", hello)
+            .with_parameter(Parameter::new("who").set_required(true)?)?
+            .with_help("Greetings!"),
+    );
     repl.run()
 }

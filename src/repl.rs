@@ -1,7 +1,7 @@
-use crate::command_def::{CommandDefinition, ParameterDefinition};
+use crate::command_def::{Command, Parameter};
 use crate::error::*;
 use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
-use crate::{Callback, Value};
+use crate::Value;
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -19,7 +19,7 @@ pub struct Repl<Context> {
     pub version: String,
     pub purpose: String,
     prompt: Box<dyn Display>,
-    commands: HashMap<String, CommandDefinition<Context>>,
+    pub commands: HashMap<String, Command<Context>>,
     pub context: Context,
     help_context: Option<HelpContext>,
     help_viewer: Box<dyn HelpViewer>,
@@ -62,79 +62,33 @@ impl<Context> Repl<Context> {
         self.error_handler = handler;
     }
 
-    fn validate_parameters(&self, name: &str, parameters: &[ParameterDefinition]) -> Result<()> {
-        let mut can_be_required = true;
-        let mut can_be_defaulted = true;
-        for parameter in parameters.iter() {
-            if parameter.required {
-                if !can_be_required {
-                    return Err(Error::IllegalRequiredError(
-                        name.into(),
-                        parameter.name.clone(),
-                    ));
-                }
-                if parameter.default.is_some() {
-                    return Err(Error::IllegalDefaultError(
-                        name.into(),
-                        parameter.name.clone(),
-                    ));
-                }
-            } else {
-                can_be_required = false;
-                if parameter.default.is_some() {
-                    if !can_be_defaulted {
-                        return Err(Error::IllegalDefaultError(
-                            name.into(),
-                            parameter.name.clone(),
-                        ));
-                    }
-                } else {
-                    can_be_defaulted = false;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn add_command(
-        &mut self,
-        name: &str,
-        parameters: Vec<ParameterDefinition>,
-        callback: Callback<Context>,
-        help_summary: Option<String>,
-    ) -> Result<()> {
-        self.validate_parameters(name, &parameters)?;
-        self.commands.insert(
-            name.to_string(),
-            CommandDefinition::new(name, parameters, callback, help_summary),
-        );
-        Ok(())
+    pub fn add_command(&mut self, command: Command<Context>) {
+        self.commands.insert(command.name.clone(), command);
     }
 
     fn validate_arguments(
         &self,
         command: &str,
-        definitions: &[ParameterDefinition],
+        parameters: &[Parameter],
         args: &[&str],
     ) -> Result<HashMap<String, Value>> {
-        if args.len() > definitions.len() {
-            return Err(Error::TooManyArguments(command.into(), definitions.len()));
+        if args.len() > parameters.len() {
+            return Err(Error::TooManyArguments(command.into(), parameters.len()));
         }
 
         let mut validated = HashMap::new();
-        for (index, definition) in definitions.iter().enumerate() {
+        for (index, parameter) in parameters.iter().enumerate() {
             if index < args.len() {
-                validated.insert(definition.name.clone(), Value::new(&args[index]));
-            } else if definition.required {
+                validated.insert(parameter.name.clone(), Value::new(&args[index]));
+            } else if parameter.required {
                 return Err(Error::MissingRequiredArgument(
                     command.into(),
-                    definition.name.clone(),
+                    parameter.name.clone(),
                 ));
-            } else if definition.default.is_some() {
+            } else if parameter.default.is_some() {
                 validated.insert(
-                    definition.name.clone(),
-                    Value::new(&definition.default.clone().unwrap()),
+                    parameter.name.clone(),
+                    Value::new(&parameter.default.clone().unwrap()),
                 );
             }
         }
@@ -184,7 +138,13 @@ impl<Context> Repl<Context> {
         let mut help_entries = self
             .commands
             .iter()
-            .map(|(_, definition)| HelpEntry::new(&definition))
+            .map(|(_, definition)| {
+                HelpEntry::new(
+                    &definition.name,
+                    &definition.parameters,
+                    &definition.help_summary,
+                )
+            })
             .collect::<Vec<HelpEntry>>();
         help_entries.sort_by_key(|d| d.command.clone());
         self.help_context = Some(HelpContext::new(
@@ -218,17 +178,16 @@ impl<Context> Repl<Context> {
 
 #[cfg(test)]
 mod tests {
-    use crate::command_def::{ParameterDefinition, Type};
+    use crate::command_def::{Command, Parameter};
     use crate::error::*;
     use crate::repl::Repl;
     use crate::Value;
     use nix::sys::wait::{waitpid, WaitStatus};
-    use nix::unistd::{close, dup2, fork, pipe, sleep, ForkResult};
+    use nix::unistd::{close, dup2, fork, pipe, ForkResult};
     use std::collections::HashMap;
     use std::fs::File;
     use std::io::Write;
     use std::os::unix::io::FromRawFd;
-    use std::thread;
 
     fn test_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result<()> {
         Err(error)
@@ -236,10 +195,10 @@ mod tests {
 
     #[derive(Default)]
     struct Context {
-        foobar: usize,
+        _foobar: usize,
     }
 
-    fn foo(args: HashMap<String, Value>, context: &mut Context) -> Result<String> {
+    fn foo(args: HashMap<String, Value>, _context: &mut Context) -> Result<String> {
         Ok(format!("foo {:?}", args))
     }
 
@@ -249,7 +208,7 @@ mod tests {
             Ok(ForkResult::Parent { child, .. }) => {
                 // Parent
                 let mut f = unsafe { File::from_raw_fd(wrtr) };
-                write!(f, "{}", input);
+                write!(f, "{}", input).unwrap();
                 if let WaitStatus::Exited(_, exit_code) = waitpid(child, None).unwrap() {
                     assert!(exit_code == 0);
                 };
@@ -271,7 +230,7 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_required_arg_fails() {
+    fn test_missing_required_arg_fails() -> Result<()> {
         let mut repl = Repl::new(
             "test",
             "v0.1.0",
@@ -281,23 +240,23 @@ mod tests {
         );
         repl.set_error_handler(test_error_handler);
         repl.add_command(
-            "foo",
-            vec![
-                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
-                ParameterDefinition::new("baz", Type::Int, true, None).unwrap(),
-            ],
-            foo,
-            Some("Do foo when you can".to_string()),
+            Command::new("foo", foo)
+                .with_parameter(Parameter::new("bar").set_required(true)?)?
+                .with_parameter(Parameter::new("baz").set_required(true)?)?
+                .with_help("Do foo when you can")
+                .build(),
         );
         run_repl(
             repl,
             "foo bar\n",
             Err(Error::MissingRequiredArgument("foo".into(), "baz".into())),
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_unknown_command_fails() {
+    fn test_unknown_command_fails() -> Result<()> {
         let mut repl = Repl::new(
             "test",
             "v0.1.0",
@@ -307,93 +266,40 @@ mod tests {
         );
         repl.set_error_handler(test_error_handler);
         repl.add_command(
-            "foo",
-            vec![
-                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
-                ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
-            ],
-            foo,
-            Some("Do foo when you can".to_string()),
+            Command::new("foo", foo)
+                .with_parameter(Parameter::new("bar").set_required(true)?)?
+                .with_parameter(Parameter::new("baz").set_default("20")?)?
+                .with_help("Do foo when you can")
+                .build(),
         );
         run_repl(
             repl,
             "bar baz\n",
             Err(Error::UnknownCommand("bar".to_string())),
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_wrong_arg_type_fails() {
-        let error_string = "Error parsing parameter \'baz\' in command \'foo\': Error: invalid digit found in string".to_string();
-        let mut repl = Repl::new(
-            "test",
-            "v0.1.0",
-            "Testing 1, 2, 3...",
-            Context::default(),
-            None,
-        );
-        repl.set_error_handler(test_error_handler);
-        repl.add_command(
-            "foo",
-            vec![
-                ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
-                ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
-            ],
-            foo,
-            Some("Do foo when you can".to_string()),
-        );
-        run_repl(
-            repl,
-            "foo bar baz\n",
-            Err(Error::CommandError(error_string)),
-        );
-    }
-
-    #[test]
-    fn test_no_required_after_optional() {
-        let mut repl = Repl::new(
-            "test",
-            "v0.1.0",
-            "Testing 1, 2, 3...",
-            Context::default(),
-            None,
-        );
-        repl.set_error_handler(test_error_handler);
+    fn test_no_required_after_optional() -> Result<()> {
         assert_eq!(
-            Err(Error::IllegalRequiredError("foo".into(), "bar".into())),
-            repl.add_command(
-                "foo",
-                vec![
-                    ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
-                    ParameterDefinition::new("bar", Type::String, true, None).unwrap(),
-                ],
-                foo,
-                Some("Do foo when you can".to_string()),
-            )
+            Err(Error::IllegalRequiredError("bar".into())),
+            Command::new("foo", foo)
+                .with_parameter(Parameter::new("baz").set_default("20")?)?
+                .with_parameter(Parameter::new("bar").set_required(true)?)
         );
+
+        Ok(())
     }
 
     #[test]
-    fn test_required_cannot_be_defaulted() {
-        let mut repl = Repl::new(
-            "test",
-            "v0.1.0",
-            "Testing 1, 2, 3...",
-            Context::default(),
-            None,
-        );
-        repl.set_error_handler(test_error_handler);
+    fn test_required_cannot_be_defaulted() -> Result<()> {
         assert_eq!(
-            Err(Error::IllegalDefaultError("foo".into(), "bar".into())),
-            repl.add_command(
-                "foo",
-                vec![
-                    ParameterDefinition::new("bar", Type::String, true, Some("foo")).unwrap(),
-                    ParameterDefinition::new("baz", Type::Int, false, Some("20")).unwrap(),
-                ],
-                foo,
-                Some("Do foo when you can".to_string()),
-            )
+            Err(Error::IllegalDefaultError("bar".into())),
+            Parameter::new("bar").set_required(true)?.set_default("foo")
         );
+
+        Ok(())
     }
 }

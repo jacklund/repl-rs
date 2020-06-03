@@ -1,4 +1,4 @@
-use crate::command_def::CommandDefinition;
+use crate::command_def::Parameter;
 use crate::error::*;
 use yansi::Paint;
 
@@ -10,15 +10,14 @@ pub struct HelpEntry {
 }
 
 impl HelpEntry {
-    pub fn new<Context>(command: &CommandDefinition<Context>) -> Self {
+    pub fn new(command_name: &str, parameters: &[Parameter], summary: &Option<String>) -> Self {
         Self {
-            command: command.name.clone(),
-            parameters: command
-                .parameters
+            command: command_name.to_string(),
+            parameters: parameters
                 .iter()
                 .map(|pd| (pd.name.clone(), pd.required))
                 .collect(),
-            summary: command.help_summary.clone(),
+            summary: summary.clone(),
         }
     }
 }

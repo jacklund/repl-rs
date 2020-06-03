@@ -6,8 +6,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    IllegalRequiredError(String, String),
-    IllegalDefaultError(String, String),
+    IllegalRequiredError(String),
+    IllegalDefaultError(String),
     MissingRequiredArgument(String, String),
     TooManyArguments(String, usize),
     ParseIntError(num::ParseIntError),
@@ -19,16 +19,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
         match self {
-            Error::IllegalDefaultError(command, parameter) => write!(
-                f,
-                "Error: Parameter '{}' in command '{}' cannot have a default",
-                parameter, command
-            ),
-            Error::IllegalRequiredError(command, parameter) => write!(
-                f,
-                "Error: Parameter '{}' in command '{}' cannot be required",
-                parameter, command
-            ),
+            Error::IllegalDefaultError(parameter) => {
+                write!(f, "Error: Parameter '{}' cannot have a default", parameter)
+            }
+            Error::IllegalRequiredError(parameter) => {
+                write!(f, "Error: Parameter '{}' cannot be required", parameter)
+            }
             Error::MissingRequiredArgument(command, parameter) => write!(
                 f,
                 "Error: Missing required argument '{}' for command '{}'",
