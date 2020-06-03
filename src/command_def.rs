@@ -66,10 +66,6 @@ impl<Context> Command<Context> {
 
         self
     }
-
-    pub fn build(self) -> Command<Context> {
-        self
-    }
 }
 
 #[derive(Debug, PartialEq)]

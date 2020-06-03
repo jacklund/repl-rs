@@ -243,8 +243,7 @@ mod tests {
             Command::new("foo", foo)
                 .with_parameter(Parameter::new("bar").set_required(true)?)?
                 .with_parameter(Parameter::new("baz").set_required(true)?)?
-                .with_help("Do foo when you can")
-                .build(),
+                .with_help("Do foo when you can"),
         );
         run_repl(
             repl,
@@ -269,8 +268,7 @@ mod tests {
             Command::new("foo", foo)
                 .with_parameter(Parameter::new("bar").set_required(true)?)?
                 .with_parameter(Parameter::new("baz").set_default("20")?)?
-                .with_help("Do foo when you can")
-                .build(),
+                .with_help("Do foo when you can"),
         );
         run_repl(
             repl,
