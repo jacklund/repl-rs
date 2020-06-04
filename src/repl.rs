@@ -2,6 +2,7 @@ use crate::command_def::{Command, Parameter};
 use crate::error::*;
 use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::Value;
+use clap::{crate_description, crate_name, crate_version};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -15,37 +16,26 @@ fn default_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result
 }
 
 pub struct Repl<Context> {
-    pub name: String,
-    pub version: String,
-    pub purpose: String,
+    name: String,
+    version: String,
+    description: String,
     prompt: Box<dyn Display>,
-    pub commands: HashMap<String, Command<Context>>,
-    pub context: Context,
+    commands: HashMap<String, Command<Context>>,
+    context: Context,
     help_context: Option<HelpContext>,
     help_viewer: Box<dyn HelpViewer>,
     error_handler: ErrorHandler<Context>,
 }
 
 impl<Context> Repl<Context> {
-    pub fn new(
-        name: &str,
-        version: &str,
-        purpose: &str,
-        context: Context,
-        mut prompt: Option<&'static dyn Display>,
-    ) -> Self {
-        let default_prompt: Box<dyn Display> = Box::new(Paint::green(format!("{}> ", name)).bold());
-        let prompt: Box<dyn Display> = if prompt.is_some() {
-            Box::new(prompt.take().unwrap())
-        } else {
-            default_prompt
-        };
+    pub fn new(context: Context) -> Self {
+        let name = crate_name!().to_string();
 
         Self {
-            name: name.into(),
-            version: version.into(),
-            purpose: purpose.into(),
-            prompt,
+            name: name.clone(),
+            version: crate_version!().to_string(),
+            description: crate_description!().to_string(),
+            prompt: Box::new(Paint::green(format!("{}> ", name)).bold()),
             commands: HashMap::new(),
             context,
             help_context: None,
@@ -54,16 +44,47 @@ impl<Context> Repl<Context> {
         }
     }
 
-    pub fn set_help_viewer<V: 'static + HelpViewer>(&mut self, help_viewer: V) {
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = name.to_string();
+        self.prompt = Box::new(Paint::green(format!("{}> ", name)).bold());
+
+        self
+    }
+
+    pub fn with_version(mut self, version: &str) -> Self {
+        self.version = version.to_string();
+
+        self
+    }
+
+    pub fn with_description(mut self, description: &str) -> Self {
+        self.description = description.to_string();
+
+        self
+    }
+
+    pub fn with_prompt(mut self, prompt: &'static dyn Display) -> Self {
+        self.prompt = Box::new(prompt);
+
+        self
+    }
+
+    pub fn with_help_viewer<V: 'static + HelpViewer>(mut self, help_viewer: V) -> Self {
         self.help_viewer = Box::new(help_viewer);
+
+        self
     }
 
-    pub fn set_error_handler(&mut self, handler: ErrorHandler<Context>) {
+    pub fn with_error_handler(mut self, handler: ErrorHandler<Context>) -> Self {
         self.error_handler = handler;
+
+        self
     }
 
-    pub fn add_command(&mut self, command: Command<Context>) {
+    pub fn add_command(mut self, command: Command<Context>) -> Self {
         self.commands.insert(command.name.clone(), command);
+
+        self
     }
 
     fn validate_arguments(
@@ -150,7 +171,7 @@ impl<Context> Repl<Context> {
         self.help_context = Some(HelpContext::new(
             &self.name,
             &self.version,
-            &self.purpose,
+            &self.description,
             help_entries,
         ));
     }

@@ -1,3 +1,4 @@
+extern crate clap;
 extern crate rustyline;
 
 mod command_def;
