@@ -4,6 +4,9 @@ use repl_rs::{Command, Parameter, Result, Value};
 use repl_rs::{Convert, Repl};
 use std::collections::HashMap;
 
+/// Example using Repl without Context (or, more precisely, a Context of ())
+
+// Add two numbers. Have to make this generic to be able to pass a Context of type ()
 fn add<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
     let first: i32 = args["first"].convert()?;
     let second: i32 = args["second"].convert()?;
@@ -11,6 +14,7 @@ fn add<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
     Ok((first + second).to_string())
 }
 
+// Write "Hello"
 fn hello<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
     Ok(format!("Hello, {}", args["who"]))
 }
