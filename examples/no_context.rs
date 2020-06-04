@@ -27,7 +27,8 @@ fn main() -> Result<()> {
         .add_command(
             Command::new("add", add)
                 .with_parameter(Parameter::new("first").set_required(true)?)?
-                .with_parameter(Parameter::new("second").set_required(true)?)?,
+                .with_parameter(Parameter::new("second").set_required(true)?)?
+                .with_help("Add two numbers together"),
         )
         .add_command(
             Command::new("hello", hello)

@@ -36,11 +36,13 @@ fn main() -> Result<()> {
         .with_description("My very cool app")
         .add_command(
             Command::new("append", append)
-                .with_parameter(Parameter::new("name").set_required(true)?)?,
+                .with_parameter(Parameter::new("name").set_required(true)?)?
+                .with_help("Append name to end of list"),
         )
         .add_command(
             Command::new("prepend", prepend)
-                .with_parameter(Parameter::new("name").set_required(true)?)?,
+                .with_parameter(Parameter::new("name").set_required(true)?)?
+                .with_help("Prepend name to front of list"),
         );
     repl.run()
 }
