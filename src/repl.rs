@@ -219,12 +219,7 @@ mod tests {
         Err(error)
     }
 
-    #[derive(Default)]
-    struct Context {
-        _foobar: usize,
-    }
-
-    fn foo(args: HashMap<String, Value>, _context: &mut Context) -> Result<String> {
+    fn foo<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
         Ok(format!("foo {:?}", args))
     }
 
@@ -257,20 +252,17 @@ mod tests {
 
     #[test]
     fn test_missing_required_arg_fails() -> Result<()> {
-        let mut repl = Repl::new(
-            "test",
-            "v0.1.0",
-            "Testing 1, 2, 3...",
-            Context::default(),
-            None,
-        );
-        repl.set_error_handler(test_error_handler);
-        repl.add_command(
-            Command::new("foo", foo)
-                .with_parameter(Parameter::new("bar").set_required(true)?)?
-                .with_parameter(Parameter::new("baz").set_required(true)?)?
-                .with_help("Do foo when you can"),
-        );
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
         run_repl(
             repl,
             "foo bar\n",
@@ -282,20 +274,17 @@ mod tests {
 
     #[test]
     fn test_unknown_command_fails() -> Result<()> {
-        let mut repl = Repl::new(
-            "test",
-            "v0.1.0",
-            "Testing 1, 2, 3...",
-            Context::default(),
-            None,
-        );
-        repl.set_error_handler(test_error_handler);
-        repl.add_command(
-            Command::new("foo", foo)
-                .with_parameter(Parameter::new("bar").set_required(true)?)?
-                .with_parameter(Parameter::new("baz").set_default("20")?)?
-                .with_help("Do foo when you can"),
-        );
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
         run_repl(
             repl,
             "bar baz\n",
@@ -309,7 +298,7 @@ mod tests {
     fn test_no_required_after_optional() -> Result<()> {
         assert_eq!(
             Err(Error::IllegalRequiredError("bar".into())),
-            Command::new("foo", foo)
+            Command::<()>::new("foo", foo)
                 .with_parameter(Parameter::new("baz").set_default("20")?)?
                 .with_parameter(Parameter::new("bar").set_required(true)?)
         );
