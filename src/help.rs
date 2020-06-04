@@ -77,6 +77,8 @@ impl HelpViewer for DefaultHelpViewer {
                 Some(entry) => {
                     if entry.summary.is_some() {
                         println!("{}: {}", entry.command, entry.summary.clone().unwrap());
+                    } else {
+                        println!("{}:", entry.command);
                     }
                     println!("Usage:");
                     print!("\t{}", entry.command);
