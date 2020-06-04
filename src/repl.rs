@@ -20,6 +20,7 @@ pub struct Repl<Context> {
     version: String,
     description: String,
     prompt: Box<dyn Display>,
+    custom_prompt: bool,
     commands: HashMap<String, Command<Context>>,
     context: Context,
     help_context: Option<HelpContext>,
@@ -36,6 +37,7 @@ impl<Context> Repl<Context> {
             version: crate_version!().to_string(),
             description: crate_description!().to_string(),
             prompt: Box::new(Paint::green(format!("{}> ", name)).bold()),
+            custom_prompt: false,
             commands: HashMap::new(),
             context,
             help_context: None,
@@ -46,7 +48,9 @@ impl<Context> Repl<Context> {
 
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
-        self.prompt = Box::new(Paint::green(format!("{}> ", name)).bold());
+        if !self.custom_prompt {
+            self.prompt = Box::new(Paint::green(format!("{}> ", name)).bold());
+        }
 
         self
     }
@@ -65,6 +69,7 @@ impl<Context> Repl<Context> {
 
     pub fn with_prompt(mut self, prompt: &'static dyn Display) -> Self {
         self.prompt = Box::new(prompt);
+        self.custom_prompt = true;
 
         self
     }
