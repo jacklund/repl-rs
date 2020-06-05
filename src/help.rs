@@ -2,15 +2,26 @@ use crate::error::*;
 use crate::Parameter;
 use yansi::Paint;
 
+/// Help entry which gets sent to [HelpViewer](trait.HelpViewer.html) when help for a particular
+/// command is requested
 #[derive(Debug)]
 pub struct HelpEntry {
+    /// Command from `help <command>`
     pub command: String,
+
+    /// Parameters defined for the command
     pub parameters: Vec<(String, bool)>,
+
+    /// Help summary for the command
     pub summary: Option<String>,
 }
 
 impl HelpEntry {
-    pub fn new(command_name: &str, parameters: &[Parameter], summary: &Option<String>) -> Self {
+    pub(crate) fn new(
+        command_name: &str,
+        parameters: &[Parameter],
+        summary: &Option<String>,
+    ) -> Self {
         Self {
             command: command_name.to_string(),
             parameters: parameters
@@ -22,15 +33,23 @@ impl HelpEntry {
     }
 }
 
+/// Struct which gets sent to [HelpViewer](trait.HelpViewer.html) when `help` command is called
 pub struct HelpContext {
-    app_name: String,
-    app_version: String,
-    app_purpose: String,
-    help_entries: Vec<HelpEntry>,
+    /// Application name
+    pub app_name: String,
+
+    /// Application version
+    pub app_version: String,
+
+    /// Application purpose/description
+    pub app_purpose: String,
+
+    /// List of help entries
+    pub help_entries: Vec<HelpEntry>,
 }
 
 impl HelpContext {
-    pub fn new(
+    pub(crate) fn new(
         app_name: &str,
         app_version: &str,
         app_purpose: &str,

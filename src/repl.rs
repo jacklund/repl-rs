@@ -15,6 +15,7 @@ fn default_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result
     Ok(())
 }
 
+/// Main REPL struct
 pub struct Repl<Context> {
     name: String,
     version: String,
@@ -29,6 +30,7 @@ pub struct Repl<Context> {
 }
 
 impl<Context> Repl<Context> {
+    /// Create a new Repl with the given context's initial value.
     pub fn new(context: Context) -> Self {
         let name = crate_name!().to_string();
 
@@ -46,6 +48,8 @@ impl<Context> Repl<Context> {
         }
     }
 
+    /// Give your Repl a name. This is used in the help summary for the Repl.
+    /// Default is the crate name
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         if !self.custom_prompt {
@@ -55,18 +59,24 @@ impl<Context> Repl<Context> {
         self
     }
 
+    /// Give your Repl a version. This is used in the help summary for the Repl.
+    /// Default is the crate version
     pub fn with_version(mut self, version: &str) -> Self {
         self.version = version.to_string();
 
         self
     }
 
+    /// Give your Repl a description. This is used in the help summary for the Repl.
+    /// Default is the crate description
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = description.to_string();
 
         self
     }
 
+    /// Give your Repl a custom prompt. The default prompt is the Repl name, followed by
+    /// a `>`, all in green, followed by a space.
     pub fn with_prompt(mut self, prompt: &'static dyn Display) -> Self {
         self.prompt = Box::new(prompt);
         self.custom_prompt = true;
@@ -74,18 +84,22 @@ impl<Context> Repl<Context> {
         self
     }
 
+    /// Pass in a custom help viewer
     pub fn with_help_viewer<V: 'static + HelpViewer>(mut self, help_viewer: V) -> Self {
         self.help_viewer = Box::new(help_viewer);
 
         self
     }
 
+    /// Pass in a custom error handler. This is really only for testing - the default
+    /// error handler simply prints the error to stderr and then returns
     pub fn with_error_handler(mut self, handler: ErrorHandler<Context>) -> Self {
         self.error_handler = handler;
 
         self
     }
 
+    /// Add a command to your REPL
     pub fn add_command(mut self, command: Command<Context>) -> Self {
         self.commands.insert(command.name.clone(), command);
 

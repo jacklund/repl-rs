@@ -13,6 +13,7 @@ impl fmt::Display for Value {
     }
 }
 
+/// Trait to convert from a [Value](struct.Value.html) to some other type.
 pub trait Convert<T> {
     fn convert(&self) -> Result<T>;
 }

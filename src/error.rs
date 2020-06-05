@@ -2,17 +2,34 @@ use std::convert::From;
 use std::fmt;
 use std::num;
 
+/// Result type
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Error type
 #[derive(Debug, PartialEq)]
 pub enum Error {
+    /// Parameter is required when it shouldn't be
     IllegalRequiredError(String),
+
+    /// Parameter is defaulted when it's also required
     IllegalDefaultError(String),
+
+    /// A required argument is missing
     MissingRequiredArgument(String, String),
+
+    /// Too many arguments were provided
     TooManyArguments(String, usize),
+
+    /// Error parsing an int value
     ParseIntError(num::ParseIntError),
+
+    /// Error parsing a float value
     ParseFloatError(num::ParseFloatError),
+
+    /// Generic error on command
     CommandError(String),
+
+    /// Command not found
     UnknownCommand(String),
 }
 
