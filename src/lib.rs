@@ -6,7 +6,7 @@ mod error;
 pub mod help;
 pub mod repl;
 
-pub use command_def::{Command, Parameter, Type};
+pub use command_def::{Command, Parameter};
 pub use error::{Error, Result};
 pub use repl::Repl;
 

@@ -2,13 +2,6 @@ use crate::error::*;
 use crate::Callback;
 use std::fmt;
 
-#[derive(Debug)]
-pub enum Type {
-    String,
-    Int,
-    Float,
-}
-
 pub struct Command<Context> {
     pub(crate) name: String,
     pub(crate) parameters: Vec<Parameter>,
