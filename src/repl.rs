@@ -146,10 +146,21 @@ impl<Context> Repl<Context> {
     fn show_help(&self, args: &[&str]) -> Result<()> {
         if args.is_empty() {
             self.help_viewer
-                .help(None, &self.help_context.as_ref().unwrap())?;
+                .help_general(&self.help_context.as_ref().unwrap())?;
         } else {
-            self.help_viewer
-                .help(Some(args[0]), &self.help_context.as_ref().unwrap())?;
+            let entry_opt = self
+                .help_context
+                .as_ref()
+                .unwrap()
+                .help_entries
+                .iter()
+                .find(|entry| entry.command == args[0]);
+            match entry_opt {
+                Some(entry) => {
+                    self.help_viewer.help_command(&entry)?;
+                }
+                None => eprintln!("Help not found for command '{}'", args[0]),
+            };
         }
         Ok(())
     }

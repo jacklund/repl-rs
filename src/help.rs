@@ -45,54 +45,55 @@ impl HelpContext {
     }
 }
 
+/// Trait to be used if you want your own custom Help output
 pub trait HelpViewer {
-    fn help(&self, command: Option<&str>, context: &HelpContext) -> Result<()>;
+    /// Called when the plain `help` command is called with no arguments
+    fn help_general(&self, context: &HelpContext) -> Result<()>;
+
+    /// Called when the `help` command is called with a command argument (i.e., `help foo`).
+    /// Note that you won't have to handle an unknown command - it'll be handled in the caller
+    fn help_command(&self, entry: &HelpEntry) -> Result<()>;
 }
 
-pub struct DefaultHelpViewer {}
+/// Default [HelpViewer](trait.HelpViewer.html)
+pub struct DefaultHelpViewer;
 
 impl DefaultHelpViewer {
     pub fn new() -> Self {
-        Self {}
+        Self
     }
 }
 
 impl HelpViewer for DefaultHelpViewer {
-    fn help(&self, command: Option<&str>, context: &HelpContext) -> Result<()> {
-        if command.is_none() {
-            self.print_help_header(context);
-            for entry in &context.help_entries {
-                print!("{}", entry.command);
-                if entry.summary.is_some() {
-                    print!(" - {}", entry.summary.clone().unwrap());
-                }
-                println!();
+    fn help_general(&self, context: &HelpContext) -> Result<()> {
+        self.print_help_header(context);
+        for entry in &context.help_entries {
+            print!("{}", entry.command);
+            if entry.summary.is_some() {
+                print!(" - {}", entry.summary.clone().unwrap());
             }
+            println!();
+        }
+
+        Ok(())
+    }
+
+    fn help_command(&self, entry: &HelpEntry) -> Result<()> {
+        if entry.summary.is_some() {
+            println!("{}: {}", entry.command, entry.summary.clone().unwrap());
         } else {
-            let entry_opt = context
-                .help_entries
-                .iter()
-                .find(|entry| entry.command == command.clone().unwrap());
-            match entry_opt {
-                Some(entry) => {
-                    if entry.summary.is_some() {
-                        println!("{}: {}", entry.command, entry.summary.clone().unwrap());
-                    } else {
-                        println!("{}:", entry.command);
-                    }
-                    println!("Usage:");
-                    print!("\t{}", entry.command);
-                    for param in entry.parameters.clone() {
-                        if param.1 {
-                            print!(" {}", param.0);
-                        } else {
-                            print!(" [{}]", param.0);
-                        }
-                    }
-                }
-                None => eprintln!("No help for {} found", command.unwrap()),
+            println!("{}:", entry.command);
+        }
+        println!("Usage:");
+        print!("\t{}", entry.command);
+        for param in entry.parameters.clone() {
+            if param.1 {
+                print!(" {}", param.0);
+            } else {
+                print!(" [{}]", param.0);
             }
         }
+
         Ok(())
     }
 }
