@@ -7,6 +7,8 @@ license = "MIT"
 repository = "https://github.com/jacklund/repl-rs"
 homepage = "https://github.com/jacklund/repl-rs"
 readme = "README.md"
+keywords = ["repl", "interpreter"]
+categories = ["command-line-interface"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
