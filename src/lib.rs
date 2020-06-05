@@ -1,12 +1,14 @@
 extern crate clap;
 extern crate rustyline;
 
-mod command_def;
+mod command;
 mod error;
-pub mod help;
-pub mod repl;
+mod help;
+mod parameter;
+mod repl;
+mod value;
 
-pub use command_def::{Command, Parameter};
+pub use command::Command;
 pub use error::{Error, Result};
 pub use repl::Repl;
 #[doc(inline)]

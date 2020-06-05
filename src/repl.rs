@@ -1,7 +1,7 @@
-use crate::command_def::{Command, Parameter};
 use crate::error::*;
 use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::Value;
+use crate::{Command, Parameter};
 use clap::{crate_description, crate_name, crate_version};
 use std::boxed::Box;
 use std::collections::HashMap;
@@ -205,10 +205,10 @@ impl<Context> Repl<Context> {
 
 #[cfg(test)]
 mod tests {
-    use crate::command_def::{Command, Parameter};
     use crate::error::*;
     use crate::repl::Repl;
     use crate::Value;
+    use crate::{Command, Parameter};
     use nix::sys::wait::{waitpid, WaitStatus};
     use nix::unistd::{close, dup2, fork, pipe, ForkResult};
     use std::collections::HashMap;

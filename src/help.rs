@@ -1,5 +1,5 @@
-use crate::command_def::Parameter;
 use crate::error::*;
+use crate::Parameter;
 use yansi::Paint;
 
 #[derive(Debug)]

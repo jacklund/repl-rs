@@ -1,7 +1,9 @@
 use crate::error::*;
 use crate::Callback;
+use crate::Parameter;
 use std::fmt;
 
+/// Struct to define a command in the REPL
 pub struct Command<Context> {
     pub(crate) name: String,
     pub(crate) parameters: Vec<Parameter>,
@@ -28,6 +30,7 @@ impl<Context> std::cmp::PartialEq for Command<Context> {
 }
 
 impl<Context> Command<Context> {
+    /// Create a new command with the given name and callback function
     pub fn new(name: &str, callback: Callback<Context>) -> Self {
         Self {
             name: name.to_string(),
@@ -37,6 +40,8 @@ impl<Context> Command<Context> {
         }
     }
 
+    /// Add a parameter to the command. The order of the parameters is the same as the order in
+    /// which this is called for each parameter.
     pub fn with_parameter(mut self, parameter: Parameter) -> Result<Command<Context>> {
         if parameter.required {
             if self
@@ -54,44 +59,10 @@ impl<Context> Command<Context> {
         Ok(self)
     }
 
+    /// Add a help summary for the command
     pub fn with_help(mut self, help: &str) -> Command<Context> {
         self.help_summary = Some(help.to_string());
 
         self
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Parameter {
-    pub(crate) name: String,
-    pub(crate) required: bool,
-    pub(crate) default: Option<String>,
-}
-
-impl Parameter {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.into(),
-            required: false,
-            default: None,
-        }
-    }
-
-    pub fn set_required(mut self, required: bool) -> Result<Self> {
-        if self.default.is_some() {
-            return Err(Error::IllegalRequiredError(self.name));
-        }
-        self.required = required;
-
-        Ok(self)
-    }
-
-    pub fn set_default(mut self, default: &str) -> Result<Self> {
-        if self.required {
-            return Err(Error::IllegalDefaultError(self.name));
-        }
-        self.default = Some(default.to_string());
-
-        Ok(self)
     }
 }
