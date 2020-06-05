@@ -13,7 +13,8 @@ pub use repl::Repl;
 use std::collections::HashMap;
 use std::fmt;
 
-type Callback<Context> = fn(HashMap<String, Value>, &mut Context) -> Result<String>;
+/// This is the signature for your command callback functions
+pub type Callback<Context> = fn(HashMap<String, Value>, &mut Context) -> Result<Option<String>>;
 
 #[derive(Clone, Debug)]
 pub struct Value {

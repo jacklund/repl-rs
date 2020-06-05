@@ -12,21 +12,21 @@ struct Context {
 }
 
 // Append name to list
-fn append(args: HashMap<String, Value>, context: &mut Context) -> Result<String> {
+fn append(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>> {
     let name: String = args["name"].convert()?;
     context.list.push_back(name);
     let list: Vec<String> = context.list.clone().into();
 
-    Ok(list.join(", "))
+    Ok(Some(list.join(", ")))
 }
 
 // Prepend name to list
-fn prepend(args: HashMap<String, Value>, context: &mut Context) -> Result<String> {
+fn prepend(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>> {
     let name: String = args["name"].convert()?;
     context.list.push_front(name);
     let list: Vec<String> = context.list.clone().into();
 
-    Ok(list.join(", "))
+    Ok(Some(list.join(", ")))
 }
 
 fn main() -> Result<()> {

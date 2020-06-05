@@ -126,7 +126,8 @@ impl<Context> Repl<Context> {
             Some(definition) => {
                 let validated = self.validate_arguments(&command, &definition.parameters, args)?;
                 match (definition.callback)(validated, &mut self.context) {
-                    Ok(value) => println!("{}", value),
+                    Ok(Some(value)) => println!("{}", value),
+                    Ok(None) => (),
                     Err(value) => eprintln!("{}", value),
                 };
             }
@@ -219,8 +220,8 @@ mod tests {
         Err(error)
     }
 
-    fn foo<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
-        Ok(format!("foo {:?}", args))
+    fn foo<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<Option<String>> {
+        Ok(Some(format!("foo {:?}", args)))
     }
 
     fn run_repl<Context>(mut repl: Repl<Context>, input: &str, expected: Result<()>) {

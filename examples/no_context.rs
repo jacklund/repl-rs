@@ -7,16 +7,16 @@ use std::collections::HashMap;
 /// Example using Repl without Context (or, more precisely, a Context of ())
 
 // Add two numbers. Have to make this generic to be able to pass a Context of type ()
-fn add<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
+fn add<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<Option<String>> {
     let first: i32 = args["first"].convert()?;
     let second: i32 = args["second"].convert()?;
 
-    Ok((first + second).to_string())
+    Ok(Some((first + second).to_string()))
 }
 
 // Write "Hello"
-fn hello<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<String> {
-    Ok(format!("Hello, {}", args["who"]))
+fn hello<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<Option<String>> {
+    Ok(Some(format!("Hello, {}", args["who"])))
 }
 
 fn main() -> Result<()> {
