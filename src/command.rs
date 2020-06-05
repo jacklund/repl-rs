@@ -43,15 +43,8 @@ impl<Context> Command<Context> {
     /// Add a parameter to the command. The order of the parameters is the same as the order in
     /// which this is called for each parameter.
     pub fn with_parameter(mut self, parameter: Parameter) -> Result<Command<Context>> {
-        if parameter.required {
-            if self
-                .parameters
-                .iter()
-                .find(|&param| param.required == false)
-                .is_some()
-            {
-                return Err(Error::IllegalRequiredError(parameter.name.clone()));
-            }
+        if parameter.required && self.parameters.iter().any(|param| !param.required) {
+            return Err(Error::IllegalRequiredError(parameter.name));
         }
 
         self.parameters.push(parameter);
