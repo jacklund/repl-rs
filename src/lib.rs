@@ -243,3 +243,15 @@ use std::collections::HashMap;
 /// Command callback function signature
 pub type Callback<Context, Error> =
     fn(HashMap<String, Value>, &mut Context) -> std::result::Result<Option<String>, Error>;
+
+#[macro_export]
+macro_rules! initialize_repl {
+    ($context: expr) => {{
+        let mut repl = Repl::new($context);
+        repl.name = crate_name!().to_string();
+        repl.version = crate_version!().to_string();
+        repl.description = crate_description!().to_string();
+
+        repl
+    }};
+}

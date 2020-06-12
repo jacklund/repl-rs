@@ -2,7 +2,6 @@ use crate::error::*;
 use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::Value;
 use crate::{Command, Parameter};
-use clap::{crate_description, crate_name, crate_version};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -35,12 +34,12 @@ pub struct Repl<Context, E: std::fmt::Display> {
 impl<Context, E: Display> Repl<Context, E> {
     /// Create a new Repl with the given context's initial value.
     pub fn new(context: Context) -> Self {
-        let name = crate_name!().to_string();
+        let name = String::new();
 
         Self {
             name: name.clone(),
-            version: crate_version!().to_string(),
-            description: crate_description!().to_string(),
+            version: String::new(),
+            description: String::new(),
             prompt: Box::new(Paint::green(format!("{}> ", name)).bold()),
             custom_prompt: false,
             commands: HashMap::new(),
@@ -235,8 +234,9 @@ impl<Context, E: Display> Repl<Context, E> {
 mod tests {
     use crate::error::*;
     use crate::repl::Repl;
-    use crate::Value;
+    use crate::{initialize_repl, Value};
     use crate::{Command, Parameter};
+    use clap::{crate_description, crate_name, crate_version};
     use nix::sys::wait::{waitpid, WaitStatus};
     use nix::unistd::{close, dup2, fork, pipe, ForkResult};
     use std::collections::HashMap;
@@ -277,6 +277,17 @@ mod tests {
             }
             Err(_) => println!("Fork failed"),
         }
+    }
+
+    #[test]
+    fn test_initialize_sets_crate_values() -> Result<()> {
+        let repl: Repl<(), Error> = initialize_repl!(());
+
+        assert_eq!(crate_name!(), repl.name);
+        assert_eq!(crate_version!(), repl.version);
+        assert_eq!(crate_description!(), repl.description);
+
+        Ok(())
     }
 
     #[test]
