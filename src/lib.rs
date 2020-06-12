@@ -244,6 +244,8 @@ use std::collections::HashMap;
 pub type Callback<Context, Error> =
     fn(HashMap<String, Value>, &mut Context) -> std::result::Result<Option<String>, Error>;
 
+/// Initialize the name, version and description of the Repl from your crate name, version and
+/// description
 #[macro_export]
 macro_rules! initialize_repl {
     ($context: expr) => {{

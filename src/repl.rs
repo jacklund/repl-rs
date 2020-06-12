@@ -51,7 +51,6 @@ impl<Context, E: Display> Repl<Context, E> {
     }
 
     /// Give your Repl a name. This is used in the help summary for the Repl.
-    /// Default is the crate name
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         if !self.custom_prompt {
@@ -62,7 +61,6 @@ impl<Context, E: Display> Repl<Context, E> {
     }
 
     /// Give your Repl a version. This is used in the help summary for the Repl.
-    /// Default is the crate version
     pub fn with_version(mut self, version: &str) -> Self {
         self.version = version.to_string();
 
@@ -70,7 +68,6 @@ impl<Context, E: Display> Repl<Context, E> {
     }
 
     /// Give your Repl a description. This is used in the help summary for the Repl.
-    /// Default is the crate description
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = description.to_string();
 
