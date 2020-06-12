@@ -247,10 +247,10 @@ pub type Callback<Context, Error> =
 #[macro_export]
 macro_rules! initialize_repl {
     ($context: expr) => {{
-        let mut repl = Repl::new($context);
-        repl.name = crate_name!().to_string();
-        repl.version = crate_version!().to_string();
-        repl.description = crate_description!().to_string();
+        let repl = Repl::new($context)
+            .with_name(crate_name!())
+            .with_version(crate_version!())
+            .with_description(crate_description!());
 
         repl
     }};
