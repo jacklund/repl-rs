@@ -8,28 +8,31 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use yansi::Paint;
 
-type ErrorHandler<Context> = fn(error: Error, repl: &Repl<Context>) -> Result<()>;
+type ErrorHandler<Context, E> = fn(error: Error, repl: &Repl<Context, E>) -> Result<()>;
 
-fn default_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result<()> {
+fn default_error_handler<Context, E: std::fmt::Display>(
+    error: Error,
+    _repl: &Repl<Context, E>,
+) -> Result<()> {
     eprintln!("{}", error);
     Ok(())
 }
 
 /// Main REPL struct
-pub struct Repl<Context> {
+pub struct Repl<Context, E: std::fmt::Display> {
     name: String,
     version: String,
     description: String,
     prompt: Box<dyn Display>,
     custom_prompt: bool,
-    commands: HashMap<String, Command<Context>>,
+    commands: HashMap<String, Command<Context, E>>,
     context: Context,
     help_context: Option<HelpContext>,
     help_viewer: Box<dyn HelpViewer>,
-    error_handler: ErrorHandler<Context>,
+    error_handler: ErrorHandler<Context, E>,
 }
 
-impl<Context> Repl<Context> {
+impl<Context, E: Display> Repl<Context, E> {
     /// Create a new Repl with the given context's initial value.
     pub fn new(context: Context) -> Self {
         let name = crate_name!().to_string();
@@ -93,14 +96,14 @@ impl<Context> Repl<Context> {
 
     /// Pass in a custom error handler. This is really only for testing - the default
     /// error handler simply prints the error to stderr and then returns
-    pub fn with_error_handler(mut self, handler: ErrorHandler<Context>) -> Self {
+    pub fn with_error_handler(mut self, handler: ErrorHandler<Context, E>) -> Self {
         self.error_handler = handler;
 
         self
     }
 
     /// Add a command to your REPL
-    pub fn add_command(mut self, command: Command<Context>) -> Self {
+    pub fn add_command(mut self, command: Command<Context, E>) -> Self {
         self.commands.insert(command.name.clone(), command);
 
         self
@@ -142,7 +145,7 @@ impl<Context> Repl<Context> {
                 match (definition.callback)(validated, &mut self.context) {
                     Ok(Some(value)) => println!("{}", value),
                     Ok(None) => (),
-                    Err(value) => eprintln!("{}", value),
+                    Err(error) => eprintln!("{}", error),
                 };
             }
             None => {
@@ -241,7 +244,7 @@ mod tests {
     use std::io::Write;
     use std::os::unix::io::FromRawFd;
 
-    fn test_error_handler<Context>(error: Error, _repl: &Repl<Context>) -> Result<()> {
+    fn test_error_handler<Context>(error: Error, _repl: &Repl<Context, Error>) -> Result<()> {
         Err(error)
     }
 
@@ -249,7 +252,7 @@ mod tests {
         Ok(Some(format!("foo {:?}", args)))
     }
 
-    fn run_repl<Context>(mut repl: Repl<Context>, input: &str, expected: Result<()>) {
+    fn run_repl<Context>(mut repl: Repl<Context, Error>, input: &str, expected: Result<()>) {
         let (rdr, wrtr) = pipe().unwrap();
         match fork() {
             Ok(ForkResult::Parent { child, .. }) => {
@@ -324,7 +327,7 @@ mod tests {
     fn test_no_required_after_optional() -> Result<()> {
         assert_eq!(
             Err(Error::IllegalRequiredError("bar".into())),
-            Command::<()>::new("foo", foo)
+            Command::<(), Error>::new("foo", foo)
                 .with_parameter(Parameter::new("baz").set_default("20")?)?
                 .with_parameter(Parameter::new("bar").set_required(true)?)
         );

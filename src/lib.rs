@@ -5,7 +5,7 @@
 //!
 //! ```
 //! use std::collections::HashMap;
-//! use repl_rs::{Command, Error, Parameter, Result, Value};
+//! use repl_rs::{Command, Parameter, Result, Value};
 //! use repl_rs::{Convert, Repl};
 //!
 //! // Write "Hello"
@@ -151,6 +151,73 @@
 //! ```
 //! If you want to roll your own help, just implement [HelpViewer](trait.HelpViewer.html) and add it to your REPL using the
 //! [.with_help_viewer()](struct.Repl.html#method.with_help_viewer) method.
+//!
+//! # Errors
+//!
+//! Your command functions don't need to return `repl_rs::Error`; you can return any error from
+//! them. Your error will need to implement `std::fmt::Display`, so the Repl can print the error,
+//! and you'll need to implement `std::convert::From` for `repl_rs::Error` to your error type.
+//! This makes error handling in your command functions easier, since you can just allow whatever
+//! errors your functions emit bubble up.
+//!
+//! ```
+//! use repl_rs::{Command, Parameter, Value};
+//! use repl_rs::{Convert, Repl};
+//! use std::collections::HashMap;
+//! use std::fmt;
+//! use std::result::Result;
+//!
+//! // My custom error type
+//! #[derive(Debug)]
+//! enum Error {
+//!     DivideByZeroError,
+//!     ReplError(repl_rs::Error),
+//! }
+//!
+//! // Implement conversion from repl_rs::Error to my error type
+//! impl From<repl_rs::Error> for Error {
+//!     fn from(error: repl_rs::Error) -> Self {
+//!         Error::ReplError(error)
+//!     }
+//! }
+//!
+//! // My error has to implement Display as well
+//! impl fmt::Display for Error {
+//!     fn fmt(&self, f: &mut fmt::Formatter) -> std::result::Result<(), fmt::Error> {
+//!         match self {
+//!             Error::DivideByZeroError => write!(f, "Whoops, divided by zero!"),
+//!             Error::ReplError(error) => write!(f, "{}", error),
+//!         }
+//!     }
+//! }
+//!
+//! // Divide two numbers.
+//! fn divide<T>(args: HashMap<String, Value>, _context: &mut T) -> Result<Option<String>, Error> {
+//!     let numerator: f32 = args["numerator"].convert()?;
+//!     let denominator: f32 = args["denominator"].convert()?;
+//!
+//!     if denominator == 0.0 {
+//!         return Err(Error::DivideByZeroError);
+//!     }
+//!
+//!     Ok(Some((numerator / denominator).to_string()))
+//! }
+//!
+//! fn main() -> Result<(), Error> {
+//!     let mut repl = Repl::new(())
+//!         .with_name("MyApp")
+//!         .with_version("v0.1.0")
+//!         .with_description("My very cool app")
+//!         .add_command(
+//!             Command::new("divide", divide)
+//!                 .with_parameter(Parameter::new("numerator").set_required(true)?)?
+//!                 .with_parameter(Parameter::new("denominator").set_required(true)?)?
+//!                 .with_help("Divide two numbers"),
+//!     );
+//!     Ok(repl.run()?)
+//! }
+//! ```
+//!
 extern crate clap;
 extern crate rustyline;
 
@@ -174,4 +241,5 @@ pub use value::{Convert, Value};
 use std::collections::HashMap;
 
 /// Command callback function signature
-pub type Callback<Context> = fn(HashMap<String, Value>, &mut Context) -> Result<Option<String>>;
+pub type Callback<Context, Error> =
+    fn(HashMap<String, Value>, &mut Context) -> std::result::Result<Option<String>, Error>;
