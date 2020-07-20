@@ -210,20 +210,34 @@ impl<Context, E: Display> Repl<Context, E> {
         self.construct_help_context();
         let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
         println!("Welcome to {} {}", self.name, self.version);
-        loop {
-            match editor.readline(&format!("{}", self.prompt)) {
-                Ok(line) => {
-                    editor.add_history_entry(line.clone());
-                    if let Err(error) = self.process_line(line) {
-                        (self.error_handler)(error, self)?;
-                    }
-                }
-                Err(rustyline::error::ReadlineError::Eof) => break,
-                Err(error) => eprintln!("Error reading line: {}", error),
-            }
+        let mut eof = false;
+        while !eof {
+            self.handle_line(&mut editor, &mut eof)?;
         }
 
         Ok(())
+    }
+
+    fn handle_line(&mut self, editor: &mut rustyline::Editor<()>, eof: &mut bool) -> Result<()> {
+        match editor.readline(&format!("{}", self.prompt)) {
+            Ok(line) => {
+                editor.add_history_entry(line.clone());
+                if let Err(error) = self.process_line(line) {
+                    (self.error_handler)(error, self)?;
+                }
+                *eof = false;
+                Ok(())
+            }
+            Err(rustyline::error::ReadlineError::Eof) => {
+                *eof = true;
+                Ok(())
+            }
+            Err(error) => {
+                eprintln!("Error reading line: {}", error);
+                *eof = false;
+                Ok(())
+            }
+        }
     }
 }
 
@@ -261,10 +275,25 @@ mod tests {
                 };
             }
             Ok(ForkResult::Child) => {
-                // Child
+                std::panic::set_hook(Box::new(|panic_info| {
+                    println!("Caught panic: {:?}", panic_info);
+                    if let Some(location) = panic_info.location() {
+                        println!(
+                            "panic occurred in file '{}' at line {}",
+                            location.file(),
+                            location.line(),
+                        );
+                    } else {
+                        println!("panic occurred but can't get location information...");
+                    }
+                }));
+
                 dup2(rdr, 0).unwrap();
                 close(rdr).unwrap();
-                let result = repl.run();
+                let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
+                let mut eof = false;
+                let result = repl.handle_line(&mut editor, &mut eof);
+                let _ = std::panic::take_hook();
                 if expected == result {
                     std::process::exit(0);
                 } else {
