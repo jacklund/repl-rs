@@ -179,9 +179,15 @@ impl<Context, E: Display> Repl<Context, E> {
     }
 
     fn process_line(&mut self, line: String) -> Result<()> {
-        let mut args = line.trim().split_whitespace().collect::<Vec<&str>>();
-        let command: String = args.drain(..1).collect();
-        self.handle_command(&command, &args)?;
+        let trimmed = line.trim();
+        println!("trimmed.len() = {}", trimmed.len());
+        if trimmed.len() > 0 {
+            println!("trimmed is not empty");
+            let mut args = trimmed.split_whitespace().collect::<Vec<&str>>();
+            let command: String = args.drain(..1).collect();
+            self.handle_command(&command, &args)?;
+        }
+        println!("returning");
         Ok(())
     }
 
@@ -312,6 +318,24 @@ mod tests {
         assert_eq!(crate_name!(), repl.name);
         assert_eq!(crate_version!(), repl.version);
         assert_eq!(crate_description!(), repl.description);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_empty_line_does_nothing() -> Result<()> {
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
+        run_repl(repl, "\n", Ok(()));
 
         Ok(())
     }
