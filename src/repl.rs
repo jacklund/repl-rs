@@ -180,14 +180,11 @@ impl<Context, E: Display> Repl<Context, E> {
 
     fn process_line(&mut self, line: String) -> Result<()> {
         let trimmed = line.trim();
-        println!("trimmed.len() = {}", trimmed.len());
         if trimmed.len() > 0 {
-            println!("trimmed is not empty");
             let mut args = trimmed.split_whitespace().collect::<Vec<&str>>();
             let command: String = args.drain(..1).collect();
             self.handle_command(&command, &args)?;
         }
-        println!("returning");
         Ok(())
     }
 
