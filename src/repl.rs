@@ -181,7 +181,7 @@ impl<Context, E: Display> Repl<Context, E> {
     fn process_line(&mut self, line: String) -> Result<()> {
         let trimmed = line.trim();
         if !trimmed.is_empty() {
-            let r = regex::Regex::new(r#"("[^"]+|[\S]+)"#).unwrap();
+            let r = regex::Regex::new(r#"("[^"\n]+"|[\S]+)"#).unwrap();
             let args = r
                 .captures_iter(trimmed)
                 .map(|a| a[0].to_string())
@@ -427,6 +427,24 @@ mod tests {
                     .with_help("Do foo when you can"),
             );
         run_repl(repl, "foo \"baz test 123\" foo\n", Ok(()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_string_with_spaces_for_argument_last() -> Result<()> {
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
+        run_repl(repl, "foo foo \"baz test 123\"\n", Ok(()));
 
         Ok(())
     }
