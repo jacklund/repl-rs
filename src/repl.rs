@@ -184,7 +184,7 @@ impl<Context, E: Display> Repl<Context, E> {
             let r = regex::Regex::new(r#"("[^"\n]+"|[\S]+)"#).unwrap();
             let args = r
                 .captures_iter(trimmed)
-                .map(|a| a[0].to_string())
+                .map(|a| a[0].to_string().replace("\"", ""))
                 .collect::<Vec<String>>();
             let mut args = args.iter().fold(vec![], |mut state, a| {
                 state.push(a.as_str());
