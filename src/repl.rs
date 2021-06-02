@@ -109,7 +109,7 @@ impl<Context, E: Display> Repl<Context, E> {
         &self,
         command: &str,
         parameters: &[Parameter],
-        args: &[&str],
+        args: &[String],
     ) -> Result<HashMap<String, Value>> {
         if args.len() > parameters.len() {
             return Err(Error::TooManyArguments(command.into(), parameters.len()));
@@ -156,7 +156,7 @@ impl<Context, E: Display> Repl<Context, E> {
         Ok(())
     }
 
-    fn show_help(&self, args: &[&str]) -> Result<()> {
+    fn show_help(&self, args: &[String]) -> Result<()> {
         if args.is_empty() {
             self.help_viewer
                 .help_general(&self.help_context.as_ref().unwrap())?;
@@ -181,7 +181,8 @@ impl<Context, E: Display> Repl<Context, E> {
     fn process_line(&mut self, line: String) -> Result<()> {
         let trimmed = line.trim();
         if trimmed.len() > 0 {
-            let mut args = trimmed.split_whitespace().collect::<Vec<&str>>();
+            let r = regex::Regex::new(r#"("[^"]+|[\S]+)"#).unwrap();
+            let mut args = r.captures_iter(trimmed).map(|a|a[0].to_string()).map(|a|a.as_str()).collect::<Vec<&str>>();
             let command: String = args.drain(..1).collect();
             self.handle_command(&command, &args)?;
         }
