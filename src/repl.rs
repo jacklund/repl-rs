@@ -180,8 +180,16 @@ impl<Context, E: Display> Repl<Context, E> {
 
     fn process_line(&mut self, line: String) -> Result<()> {
         let trimmed = line.trim();
-        if trimmed.len() > 0 {
-            let mut args = trimmed.split_whitespace().collect::<Vec<&str>>();
+        if !trimmed.is_empty() {
+            let r = regex::Regex::new(r#"("[^"\n]+"|[\S]+)"#).unwrap();
+            let args = r
+                .captures_iter(trimmed)
+                .map(|a| a[0].to_string().replace("\"", ""))
+                .collect::<Vec<String>>();
+            let mut args = args.iter().fold(vec![], |mut state, a| {
+                state.push(a.as_str());
+                state
+            });
             let command: String = args.drain(..1).collect();
             self.handle_command(&command, &args)?;
         }
@@ -268,43 +276,45 @@ mod tests {
 
     fn run_repl<Context>(mut repl: Repl<Context, Error>, input: &str, expected: Result<()>) {
         let (rdr, wrtr) = pipe().unwrap();
-        match fork() {
-            Ok(ForkResult::Parent { child, .. }) => {
-                // Parent
-                let mut f = unsafe { File::from_raw_fd(wrtr) };
-                write!(f, "{}", input).unwrap();
-                if let WaitStatus::Exited(_, exit_code) = waitpid(child, None).unwrap() {
-                    assert!(exit_code == 0);
-                };
-            }
-            Ok(ForkResult::Child) => {
-                std::panic::set_hook(Box::new(|panic_info| {
-                    println!("Caught panic: {:?}", panic_info);
-                    if let Some(location) = panic_info.location() {
-                        println!(
-                            "panic occurred in file '{}' at line {}",
-                            location.file(),
-                            location.line(),
-                        );
-                    } else {
-                        println!("panic occurred but can't get location information...");
-                    }
-                }));
-
-                dup2(rdr, 0).unwrap();
-                close(rdr).unwrap();
-                let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
-                let mut eof = false;
-                let result = repl.handle_line(&mut editor, &mut eof);
-                let _ = std::panic::take_hook();
-                if expected == result {
-                    std::process::exit(0);
-                } else {
-                    eprintln!("Expected {:?}, got {:?}", expected, result);
-                    std::process::exit(1);
+        unsafe {
+            match fork() {
+                Ok(ForkResult::Parent { child, .. }) => {
+                    // Parent
+                    let mut f = File::from_raw_fd(wrtr);
+                    write!(f, "{}", input).unwrap();
+                    if let WaitStatus::Exited(_, exit_code) = waitpid(child, None).unwrap() {
+                        assert!(exit_code == 0);
+                    };
                 }
+                Ok(ForkResult::Child) => {
+                    std::panic::set_hook(Box::new(|panic_info| {
+                        println!("Caught panic: {:?}", panic_info);
+                        if let Some(location) = panic_info.location() {
+                            println!(
+                                "panic occurred in file '{}' at line {}",
+                                location.file(),
+                                location.line(),
+                            );
+                        } else {
+                            println!("panic occurred but can't get location information...");
+                        }
+                    }));
+
+                    dup2(rdr, 0).unwrap();
+                    close(rdr).unwrap();
+                    let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
+                    let mut eof = false;
+                    let result = repl.handle_line(&mut editor, &mut eof);
+                    let _ = std::panic::take_hook();
+                    if expected == result {
+                        std::process::exit(0);
+                    } else {
+                        eprintln!("Expected {:?}, got {:?}", expected, result);
+                        std::process::exit(1);
+                    }
+                }
+                Err(_) => println!("Fork failed"),
             }
-            Err(_) => println!("Fork failed"),
         }
     }
 
@@ -399,6 +409,42 @@ mod tests {
             Err(Error::IllegalDefaultError("bar".into())),
             Parameter::new("bar").set_required(true)?.set_default("foo")
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_string_with_spaces_for_argument() -> Result<()> {
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
+        run_repl(repl, "foo \"baz test 123\" foo\n", Ok(()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_string_with_spaces_for_argument_last() -> Result<()> {
+        let repl = Repl::new(())
+            .with_name("test")
+            .with_version("v0.1.0")
+            .with_description("Testing 1, 2, 3...")
+            .with_error_handler(test_error_handler)
+            .add_command(
+                Command::new("foo", foo)
+                    .with_parameter(Parameter::new("bar").set_required(true)?)?
+                    .with_parameter(Parameter::new("baz").set_required(true)?)?
+                    .with_help("Do foo when you can"),
+            );
+        run_repl(repl, "foo foo \"baz test 123\"\n", Ok(()));
 
         Ok(())
     }
