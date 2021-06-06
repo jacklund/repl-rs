@@ -1,6 +1,6 @@
 [package]
 name = "repl-rs"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["Jack Lund <jackl@geekheads.net>"]
 description = "Library to generate a REPL for your application"
 license = "MIT"
