@@ -7,10 +7,10 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use yansi::Paint;
 
-type ErrorHandler<Context, E> = fn(error: Error, repl: &Repl<Context, E>) -> Result<()>;
+type ErrorHandler<Context, E> = fn(error: E, repl: &Repl<Context, E>) -> Result<()>;
 
 fn default_error_handler<Context, E: std::fmt::Display>(
-    error: Error,
+    error: E,
     _repl: &Repl<Context, E>,
 ) -> Result<()> {
     eprintln!("{}", error);
@@ -31,7 +31,10 @@ pub struct Repl<Context, E: std::fmt::Display> {
     error_handler: ErrorHandler<Context, E>,
 }
 
-impl<Context, E: Display> Repl<Context, E> {
+impl<Context, E> Repl<Context, E>
+where
+    E: Display + From<Error>,
+{
     /// Create a new Repl with the given context's initial value.
     pub fn new(context: Context) -> Self {
         let name = String::new();
@@ -134,21 +137,21 @@ impl<Context, E: Display> Repl<Context, E> {
         Ok(validated)
     }
 
-    fn handle_command(&mut self, command: &str, args: &[&str]) -> Result<()> {
+    fn handle_command(&mut self, command: &str, args: &[&str]) -> core::result::Result<(), E> {
         match self.commands.get(command) {
             Some(definition) => {
                 let validated = self.validate_arguments(&command, &definition.parameters, args)?;
                 match (definition.callback)(validated, &mut self.context) {
                     Ok(Some(value)) => println!("{}", value),
                     Ok(None) => (),
-                    Err(error) => eprintln!("{}", error),
+                    Err(error) => return Err(error),
                 };
             }
             None => {
                 if command == "help" {
                     self.show_help(args)?;
                 } else {
-                    return Err(Error::UnknownCommand(command.to_string()));
+                    return Err(Error::UnknownCommand(command.to_string()).into());
                 }
             }
         }
@@ -178,7 +181,7 @@ impl<Context, E: Display> Repl<Context, E> {
         Ok(())
     }
 
-    fn process_line(&mut self, line: String) -> Result<()> {
+    fn process_line(&mut self, line: String) -> core::result::Result<(), E> {
         let trimmed = line.trim();
         if !trimmed.is_empty() {
             let r = regex::Regex::new(r#"("[^"\n]+"|[\S]+)"#).unwrap();
