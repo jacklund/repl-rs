@@ -56,3 +56,4 @@ add_num_converter!(u128);
 add_num_converter!(usize);
 add_num_converter!(f32);
 add_num_converter!(f64);
+add_num_converter!(bool);
