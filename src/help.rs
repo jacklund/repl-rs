@@ -89,7 +89,7 @@ impl HelpViewer for DefaultHelpViewer {
         for entry in &context.help_entries {
             print!("{}", entry.command);
             if entry.summary.is_some() {
-                print!(" - {}", entry.summary.clone().unwrap());
+                print!(" - {}", entry.summary.as_ref().unwrap());
             }
             println!();
         }
@@ -99,13 +99,13 @@ impl HelpViewer for DefaultHelpViewer {
 
     fn help_command(&self, entry: &HelpEntry) -> Result<()> {
         if entry.summary.is_some() {
-            println!("{}: {}", entry.command, entry.summary.clone().unwrap());
+            println!("{}: {}", entry.command, entry.summary.as_ref().unwrap());
         } else {
             println!("{}:", entry.command);
         }
         println!("Usage:");
         print!("\t{}", entry.command);
-        for param in entry.parameters.clone() {
+        for param in &entry.parameters {
             if param.1 {
                 print!(" {}", param.0);
             } else {
