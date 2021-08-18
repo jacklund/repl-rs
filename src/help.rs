@@ -112,6 +112,7 @@ impl HelpViewer for DefaultHelpViewer {
                 print!(" [{}]", param.0);
             }
         }
+        println!();
 
         Ok(())
     }
