@@ -26,9 +26,6 @@ pub enum Error {
     /// Error parsing a float value
     ParseFloatError(num::ParseFloatError),
 
-    /// Generic error on command
-    CommandError(String),
-
     /// Command not found
     UnknownCommand(String),
 }
@@ -56,7 +53,6 @@ impl fmt::Display for Error {
             ),
             Error::ParseFloatError(error) => write!(f, "Error: {}", error,),
             Error::ParseIntError(error) => write!(f, "Error: {}", error,),
-            Error::CommandError(error) => write!(f, "Error: {}", error),
             Error::UnknownCommand(command) => write!(f, "Error: Unknown command '{}'", command),
         }
     }
