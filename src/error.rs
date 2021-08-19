@@ -20,6 +20,9 @@ pub enum Error {
     /// Too many arguments were provided
     TooManyArguments(String, usize),
 
+    /// Error parsing a bool value
+    ParseBoolError(std::str::ParseBoolError),
+
     /// Error parsing an int value
     ParseIntError(num::ParseIntError),
 
@@ -51,6 +54,7 @@ impl fmt::Display for Error {
                 "Error: Command '{}' can have no more than {} arguments",
                 command, nargs,
             ),
+            Error::ParseBoolError(error) => write!(f, "Error: {}", error,),
             Error::ParseFloatError(error) => write!(f, "Error: {}", error,),
             Error::ParseIntError(error) => write!(f, "Error: {}", error,),
             Error::UnknownCommand(command) => write!(f, "Error: Unknown command '{}'", command),
@@ -67,5 +71,11 @@ impl From<num::ParseIntError> for Error {
 impl From<num::ParseFloatError> for Error {
     fn from(error: num::ParseFloatError) -> Self {
         Error::ParseFloatError(error)
+    }
+}
+
+impl From<std::str::ParseBoolError> for Error {
+    fn from(error: std::str::ParseBoolError) -> Self {
+        Error::ParseBoolError(error)
     }
 }
