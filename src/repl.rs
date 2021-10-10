@@ -2,6 +2,8 @@ use crate::error::*;
 use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::Value;
 use crate::{Command, Parameter};
+use rustyline::completion;
+use rustyline_derive::{Helper, Highlighter, Hinter, Validator};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -220,9 +222,20 @@ where
         ));
     }
 
+    fn create_helper(&mut self) -> Helper {
+        let mut helper = Helper::new();
+        for name in self.commands.keys() {
+            helper.add_command(name.to_string());
+        }
+
+        helper
+    }
+
     pub fn run(&mut self) -> Result<()> {
         self.construct_help_context();
-        let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
+        let helper = Some(self.create_helper());
+        let mut editor: rustyline::Editor<Helper> = rustyline::Editor::new();
+        editor.set_helper(helper);
         println!("Welcome to {} {}", self.name, self.version);
         let mut eof = false;
         while !eof {
@@ -232,7 +245,11 @@ where
         Ok(())
     }
 
-    fn handle_line(&mut self, editor: &mut rustyline::Editor<()>, eof: &mut bool) -> Result<()> {
+    fn handle_line(
+        &mut self,
+        editor: &mut rustyline::Editor<Helper>,
+        eof: &mut bool,
+    ) -> Result<()> {
         match editor.readline(&format!("{}", self.prompt)) {
             Ok(line) => {
                 editor.add_history_entry(line.clone());
@@ -255,10 +272,44 @@ where
     }
 }
 
+#[derive(Clone, Helper, Hinter, Highlighter, Validator)]
+struct Helper {
+    commands: Vec<String>,
+}
+
+impl Helper {
+    fn new() -> Self {
+        Self { commands: vec![] }
+    }
+
+    fn add_command(&mut self, command: String) {
+        self.commands.push(command);
+    }
+}
+
+impl completion::Completer for Helper {
+    type Candidate = String;
+
+    fn complete(
+        &self,
+        line: &str,
+        _pos: usize,
+        _ctx: &rustyline::Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        let ret: Vec<Self::Candidate> = self
+            .commands
+            .iter()
+            .filter(|cmd| cmd.contains(line))
+            .map(|s| s.to_string())
+            .collect();
+        Ok((0, ret))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::error::*;
-    use crate::repl::Repl;
+    use crate::repl::{Helper, Repl};
     use crate::{initialize_repl, Value};
     use crate::{Command, Parameter};
     use clap::{crate_description, crate_name, crate_version};
@@ -305,7 +356,7 @@ mod tests {
 
                     dup2(rdr, 0).unwrap();
                     close(rdr).unwrap();
-                    let mut editor: rustyline::Editor<()> = rustyline::Editor::new();
+                    let mut editor: rustyline::Editor<Helper> = rustyline::Editor::new();
                     let mut eof = false;
                     let result = repl.handle_line(&mut editor, &mut eof);
                     let _ = std::panic::take_hook();
