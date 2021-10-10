@@ -31,6 +31,7 @@ pub struct Repl<Context, E: std::fmt::Display> {
     help_context: Option<HelpContext>,
     help_viewer: Box<dyn HelpViewer>,
     error_handler: ErrorHandler<Context, E>,
+    use_completion: bool,
 }
 
 impl<Context, E> Repl<Context, E>
@@ -52,6 +53,7 @@ where
             help_context: None,
             help_viewer: Box::new(DefaultHelpViewer::new()),
             error_handler: default_error_handler,
+            use_completion: false,
         }
     }
 
@@ -99,6 +101,13 @@ where
     /// error handler simply prints the error to stderr and then returns
     pub fn with_error_handler(mut self, handler: ErrorHandler<Context, E>) -> Self {
         self.error_handler = handler;
+
+        self
+    }
+
+    /// Set whether to use command completion when tab is hit. Defaults to false.
+    pub fn use_completion(mut self, value: bool) -> Self {
+        self.use_completion = value;
 
         self
     }
@@ -224,8 +233,10 @@ where
 
     fn create_helper(&mut self) -> Helper {
         let mut helper = Helper::new();
-        for name in self.commands.keys() {
-            helper.add_command(name.to_string());
+        if self.use_completion {
+            for name in self.commands.keys() {
+                helper.add_command(name.to_string());
+            }
         }
 
         helper
@@ -233,8 +244,8 @@ where
 
     pub fn run(&mut self) -> Result<()> {
         self.construct_help_context();
-        let helper = Some(self.create_helper());
         let mut editor: rustyline::Editor<Helper> = rustyline::Editor::new();
+        let helper = Some(self.create_helper());
         editor.set_helper(helper);
         println!("Welcome to {} {}", self.name, self.version);
         let mut eof = false;
@@ -272,6 +283,9 @@ where
     }
 }
 
+// rustyline Helper struct
+// Currently just does command completion with <tab>, if
+// use_completion() is set on the REPL
 #[derive(Clone, Helper, Hinter, Highlighter, Validator)]
 struct Helper {
     commands: Vec<String>,
@@ -296,6 +310,8 @@ impl completion::Completer for Helper {
         _pos: usize,
         _ctx: &rustyline::Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        // Complete based on whether the current line is a substring
+        // of one of the set commands
         let ret: Vec<Self::Candidate> = self
             .commands
             .iter()
