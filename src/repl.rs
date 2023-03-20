@@ -86,12 +86,24 @@ where
         self
     }
 
-    /// Give your Repl a custom prompt. The default prompt is the Repl name, followed by
-    /// a `>`, all in green, followed by a space.
+    /// Give your Repl a custom prompt. This prompt should not contain any escape sequences (e.g. for coloring).
+    /// In case you want to use a styled prompt use this function together with with_styled_prompt. Both functions
+    /// should then receive the same prompt as argument but only `with_styled_prompt` should contain the escape
+    /// sequences for styling.
+    ///
+    /// The default prompt is the Repl name, followed by a `>`, all in green, followed by a space.
     pub fn with_prompt(mut self, prompt: &'static dyn Display) -> Self {
         self.prompt = Box::new(prompt);
         self.styled_prompt = Box::new(prompt);
         self.custom_prompt = true;
+
+        self
+    }
+
+    /// Give your Repl a custom prompt which allows styling. In case you wan't to use a prompt which uses escape
+    /// sequences you have to use both functions `with_prompt` and `with_styled_prompt`.
+    pub fn with_styled_prompt(mut self, prompt: &'static dyn Display) -> Self {
+        self.styled_prompt = Box::new(prompt);
 
         self
     }
