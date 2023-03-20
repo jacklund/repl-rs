@@ -90,6 +90,7 @@ where
     /// a `>`, all in green, followed by a space.
     pub fn with_prompt(mut self, prompt: &'static dyn Display) -> Self {
         self.prompt = Box::new(prompt);
+        self.styled_prompt = Box::new(prompt);
         self.custom_prompt = true;
 
         self
