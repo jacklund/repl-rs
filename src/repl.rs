@@ -3,7 +3,9 @@ use crate::help::{DefaultHelpViewer, HelpContext, HelpEntry, HelpViewer};
 use crate::Value;
 use crate::{Command, Parameter};
 use rustyline::completion;
-use rustyline_derive::{Helper, Highlighter, Hinter, Validator};
+use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
+use rustyline_derive::{Helper, Hinter, Validator};
+use std::borrow::Cow::{self, Borrowed, Owned};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -25,6 +27,7 @@ pub struct Repl<Context, E: std::fmt::Display> {
     version: String,
     description: String,
     prompt: Box<dyn Display>,
+    styled_prompt: Box<dyn Display>,
     custom_prompt: bool,
     commands: HashMap<String, Command<Context, E>>,
     context: Context,
@@ -46,7 +49,8 @@ where
             name: name.clone(),
             version: String::new(),
             description: String::new(),
-            prompt: Box::new(Paint::green(format!("{}> ", name)).bold()),
+            prompt: Box::new(format!("{}> ", name)),
+            styled_prompt: Box::new(Paint::green(format!("{}> ", name)).bold()),
             custom_prompt: false,
             commands: HashMap::new(),
             context,
@@ -61,7 +65,8 @@ where
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         if !self.custom_prompt {
-            self.prompt = Box::new(Paint::green(format!("{}> ", name)).bold());
+            self.prompt = Box::new(format!("{}> ", name));
+            self.styled_prompt = Box::new(Paint::green(format!("{}> ", name)).bold());
         }
 
         self
@@ -232,7 +237,7 @@ where
     }
 
     fn create_helper(&mut self) -> Helper {
-        let mut helper = Helper::new();
+        let mut helper = Helper::new(self.styled_prompt.to_string().clone());
         if self.use_completion {
             for name in self.commands.keys() {
                 helper.add_command(name.to_string());
@@ -286,18 +291,50 @@ where
 // rustyline Helper struct
 // Currently just does command completion with <tab>, if
 // use_completion() is set on the REPL
-#[derive(Clone, Helper, Hinter, Highlighter, Validator)]
+#[derive(Helper, Hinter, Validator)]
 struct Helper {
     commands: Vec<String>,
+    highlighter: MatchingBracketHighlighter,
+    colored_prompt: String,
 }
 
 impl Helper {
-    fn new() -> Self {
-        Self { commands: vec![] }
+    fn new(styled_prompt: String) -> Self {
+        Self {
+            commands: vec![],
+            highlighter: MatchingBracketHighlighter::new(),
+            colored_prompt: styled_prompt,
+        }
     }
 
     fn add_command(&mut self, command: String) {
         self.commands.push(command);
+    }
+}
+
+impl Highlighter for Helper {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        prompt: &'p str,
+        default: bool,
+    ) -> Cow<'b, str> {
+        if default {
+            Borrowed(&self.colored_prompt)
+        } else {
+            Borrowed(prompt)
+        }
+    }
+
+    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        Owned("\x1b[1m".to_owned() + hint + "\x1b[m")
+    }
+
+    fn highlight<'l>(&self, line: &'l str, pos: usize) -> Cow<'l, str> {
+        self.highlighter.highlight(line, pos)
+    }
+
+    fn highlight_char(&self, line: &str, pos: usize) -> bool {
+        self.highlighter.highlight_char(line, pos)
     }
 }
 
