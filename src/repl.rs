@@ -250,7 +250,7 @@ where
     }
 
     fn create_helper(&mut self) -> Helper {
-        let mut helper = Helper::new(self.styled_prompt.to_string().clone());
+        let mut helper = Helper::new(self.styled_prompt.to_string());
         if self.use_completion {
             for name in self.commands.keys() {
                 helper.add_command(name.to_string());
