@@ -333,6 +333,7 @@ mod tests {
     use nix::unistd::{close, dup2, fork, pipe, ForkResult};
     use std::collections::HashMap;
     use std::fs::File;
+    use std::io::Write;
     use std::os::unix::io::FromRawFd;
 
     fn test_error_handler<Context>(error: Error, _repl: &Repl<Context, Error>) -> Result<()> {
