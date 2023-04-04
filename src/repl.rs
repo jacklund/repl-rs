@@ -322,7 +322,7 @@ impl completion::Completer for Helper {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use crate::error::*;
     use crate::repl::{Helper, Repl};
