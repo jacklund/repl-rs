@@ -131,6 +131,61 @@
 //! [Repl::new()](struct.Repl.html#method.new)
 //! - the context is passed to your command callback functions as a mutable reference
 //!
+//! # The "initialize_repl" macro
+//! Instead of hardcoding your package name, version and description in your code, you can instead
+//! use those values from your `Cargo.toml` file, using the `initialize_repl` macro:
+//! ```
+//! #[macro_use]
+//! extern crate clap;
+//!
+//! use repl_rs::{initialize_repl, Convert, Repl};
+//! use repl_rs::{Command, Parameter, Result, Value};
+//! use std::collections::{HashMap, VecDeque};
+//!
+//! /// Example using initialize_repl
+//!
+//! #[derive(Default)]
+//! struct Context {
+//!     list: VecDeque<String>,
+//! }
+//!
+//! // Append name to list
+//! fn append(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>> {
+//!     let name: String = args["name"].convert()?;
+//!     context.list.push_back(name);
+//!     let list: Vec<String> = context.list.clone().into();
+//!
+//!     Ok(Some(list.join(", ")))
+//! }
+//!
+//! // Prepend name to list
+//! fn prepend(args: HashMap<String, Value>, context: &mut Context) -> Result<Option<String>> {
+//!     let name: String = args["name"].convert()?;
+//!     context.list.push_front(name);
+//!     let list: Vec<String> = context.list.clone().into();
+//!
+//!     Ok(Some(list.join(", ")))
+//! }
+//!
+//! fn main() -> Result<()> {
+//!     let mut repl = initialize_repl!(Context::default())
+//!         .use_completion(true)
+//!         .add_command(
+//!             Command::new("append", append)
+//!                 .with_parameter(Parameter::new("name").set_required(true)?)?
+//!                 .with_help("Append name to end of list"),
+//!         )
+//!         .add_command(
+//!             Command::new("prepend", prepend)
+//!                 .with_parameter(Parameter::new("name").set_required(true)?)?
+//!                 .with_help("Prepend name to front of list"),
+//!         );
+//!     repl.run()
+//! }
+//! ```
+//! Note the `#[macro_use] extern crate clap` at the top. You'll need that in order to avoid
+//! getting messages like `error: cannot find macro 'crate_name' in this scope`.
+//!
 //! # Help
 //! repl-rs has support for supplying help commands for your REPL. This is accomplished through the
 //! [HelpViewer](trait.HelpViewer.html), which is a trait that has a default implementation which should give you pretty
@@ -218,9 +273,6 @@
 //! }
 //! ```
 //!
-extern crate clap;
-extern crate rustyline;
-
 mod command;
 mod error;
 mod help;
@@ -228,6 +280,7 @@ mod parameter;
 mod repl;
 mod value;
 
+pub use clap::*;
 pub use command::Command;
 pub use error::{Error, Result};
 #[doc(inline)]

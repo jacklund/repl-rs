@@ -132,7 +132,7 @@ where
         let mut validated = HashMap::new();
         for (index, parameter) in parameters.iter().enumerate() {
             if index < args.len() {
-                validated.insert(parameter.name.clone(), Value::new(&args[index]));
+                validated.insert(parameter.name.clone(), Value::new(args[index]));
             } else if parameter.required {
                 return Err(Error::MissingRequiredArgument(
                     command.into(),
@@ -151,7 +151,7 @@ where
     fn handle_command(&mut self, command: &str, args: &[&str]) -> core::result::Result<(), E> {
         match self.commands.get(command) {
             Some(definition) => {
-                let validated = self.validate_arguments(&command, &definition.parameters, args)?;
+                let validated = self.validate_arguments(command, &definition.parameters, args)?;
                 match (definition.callback)(validated, &mut self.context) {
                     Ok(Some(value)) => println!("{}", value),
                     Ok(None) => (),
@@ -173,7 +173,7 @@ where
     fn show_help(&self, args: &[&str]) -> Result<()> {
         if args.is_empty() {
             self.help_viewer
-                .help_general(&self.help_context.as_ref().unwrap())?;
+                .help_general(self.help_context.as_ref().unwrap())?;
         } else {
             let entry_opt = self
                 .help_context
@@ -184,7 +184,7 @@ where
                 .find(|entry| entry.command == args[0]);
             match entry_opt {
                 Some(entry) => {
-                    self.help_viewer.help_command(&entry)?;
+                    self.help_viewer.help_command(entry)?;
                 }
                 None => eprintln!("Help not found for command '{}'", args[0]),
             };
@@ -198,7 +198,7 @@ where
             let r = regex::Regex::new(r#"("[^"\n]+"|[\S]+)"#).unwrap();
             let args = r
                 .captures_iter(trimmed)
-                .map(|a| a[0].to_string().replace("\"", ""))
+                .map(|a| a[0].to_string().replace('\"', ""))
                 .collect::<Vec<String>>();
             let mut args = args.iter().fold(vec![], |mut state, a| {
                 state.push(a.as_str());
@@ -213,8 +213,8 @@ where
     fn construct_help_context(&mut self) {
         let mut help_entries = self
             .commands
-            .iter()
-            .map(|(_, definition)| {
+            .values()
+            .map(|definition| {
                 HelpEntry::new(
                     &definition.name,
                     &definition.parameters,

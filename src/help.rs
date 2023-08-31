@@ -124,12 +124,7 @@ impl DefaultHelpViewer {
             "{} {}: {}",
             context.app_name, context.app_version, context.app_purpose
         );
-        let underline = Paint::new(
-            std::iter::repeat(" ")
-                .take(header.len())
-                .collect::<String>(),
-        )
-        .strikethrough();
+        let underline = Paint::new(" ".repeat(header.len())).strikethrough();
         println!("{}", header);
         println!("{}", underline);
     }
